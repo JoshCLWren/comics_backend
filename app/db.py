@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import os
-import sqlite3
 from pathlib import Path
-from typing import Iterator
+from typing import AsyncIterator
 
+import aiosqlite
 from fastapi import HTTPException, status
 
 DEFAULT_DB_PATH = Path("my_database.db")
@@ -24,12 +24,11 @@ def resolve_db_path() -> Path:
     return path
 
 
-def get_connection() -> Iterator[sqlite3.Connection]:
-    """FastAPI dependency that yields a SQLite connection."""
-    conn = sqlite3.connect(resolve_db_path(), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+async def get_connection() -> AsyncIterator[aiosqlite.Connection]:
+    """FastAPI dependency that yields an async SQLite connection."""
+    conn = await aiosqlite.connect(resolve_db_path())
+    conn.row_factory = aiosqlite.Row
     try:
         yield conn
     finally:
-        conn.close()
-
+        await conn.close()
