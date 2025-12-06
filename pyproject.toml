@@ -10,3 +10,9 @@ dependencies = [
     "pdbpp>=0.11.7",
     "uvicorn[standard]>=0.38.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "ruff>=0.14.8",
+]

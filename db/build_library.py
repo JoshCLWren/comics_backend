@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 
@@ -33,6 +34,73 @@ def normalize_text(value) -> str:
     if pd.isna(value):
         return ""
     return str(value)
+
+
+def describe_row(row: pd.Series) -> str:
+    """
+    Provide a terse identifier for a CSV row so we can log problems clearly.
+    """
+    series_name = normalize_text(row.get("Series"))
+
+    issue_nr_norm = row.get("IssueNrNorm")
+    issue_nr_value = (
+        issue_nr_norm if issue_nr_norm not in (None, "") else row.get("Issue Nr")
+    )
+    issue_nr = normalize_text(issue_nr_value)
+
+    variant_norm = row.get("VariantNorm")
+    variant_value = (
+        variant_norm if variant_norm not in (None, "") else row.get("Variant")
+    )
+    variant = normalize_text(variant_value)
+
+    descriptor_parts = []
+    if series_name:
+        descriptor_parts.append(series_name)
+    if issue_nr:
+        descriptor_parts.append(f"issue {issue_nr}")
+    descriptor = " ".join(descriptor_parts).strip()
+    if descriptor and variant:
+        descriptor = f"{descriptor} (variant {variant})"
+    elif descriptor and not variant:
+        descriptor = descriptor
+    elif not descriptor and variant:
+        descriptor = f"variant {variant}"
+
+    fields = {
+        "index": row.name,
+        "CoreSeriesID": row.get("Core SeriesID"),
+        "CoreComicID": row.get("Core ComicID"),
+        "IssueNr": row.get("Issue Nr"),
+        "Variant": row.get("Variant"),
+        "Title": row.get("Title"),
+    }
+    details = []
+    for key, value in fields.items():
+        if value is None:
+            continue
+        if isinstance(value, float) and pd.isna(value):
+            continue
+        details.append(f"{key}={value}")
+
+    if descriptor and details:
+        return f"{descriptor} [{', '.join(details)}]"
+    if descriptor:
+        return descriptor
+    return ", ".join(details) if details else f"index={row.name}"
+
+
+def log_row_skip(
+    stage: str, row: pd.Series, reason: str, error: Optional[Exception] = None
+) -> None:
+    """
+    Emit a warning when a row is not inserted into the database.
+    """
+    context = describe_row(row)
+    if error:
+        logger.warning("%s: skipped %s (%s) - %s", stage, context, reason, error)
+    else:
+        logger.warning("%s: skipped %s - %s", stage, context, reason)
 
 
 def create_schema(conn: sqlite3.Connection) -> None:
@@ -135,35 +203,72 @@ def load_csv() -> pd.DataFrame:
 
 def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
     cur = conn.cursor()
+    total_rows = len(df)
+    unique_series = df["Core SeriesID"].nunique(dropna=True)
+    logger.info(
+        "Processing %d rows to populate up to %d unique series",
+        total_rows,
+        unique_series,
+    )
 
-    series_cols = [
-        "Core SeriesID",
-        "Series",
-        "Publisher",
-        "Series Group",
-        "Age",
-    ]
+    inserted = 0
+    skipped = 0
+    seen_series_ids: dict[int, str] = {}
 
-    series_df = df[series_cols].drop_duplicates(subset=["Core SeriesID"])
-    logger.info("Populating %d series rows", len(series_df))
+    for _, row in df.iterrows():
+        series_id_raw = row.get("Core SeriesID")
+        if series_id_raw is None or pd.isna(series_id_raw):
+            skipped += 1
+            log_row_skip("series", row, "missing Core SeriesID")
+            continue
 
-    for _, row in series_df.iterrows():
-        series_id = int(row["Core SeriesID"])
-        title = normalize_text(row["Series"])
-        publisher = normalize_text(row["Publisher"])
-        series_group = normalize_text(row["Series Group"])
-        age = normalize_text(row["Age"])
+        try:
+            series_id = int(series_id_raw)
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            log_row_skip("series", row, "invalid Core SeriesID", exc)
+            continue
 
-        cur.execute(
-            """
-            INSERT INTO series (series_id, title, publisher, series_group, age)
-            VALUES (?, ?, ?, ?, ?);
-            """,
-            (series_id, title, publisher, series_group, age),
-        )
+        if series_id in seen_series_ids:
+            skipped += 1
+            existing = seen_series_ids[series_id]
+            log_row_skip(
+                "series",
+                row,
+                f"duplicate Core SeriesID {series_id} (already inserted from {existing})",
+            )
+            continue
+
+        title = normalize_text(row.get("Series"))
+        publisher = normalize_text(row.get("Publisher"))
+        series_group = normalize_text(row.get("Series Group"))
+        age = normalize_text(row.get("Age"))
+
+        try:
+            cur.execute(
+                """
+                INSERT INTO series (series_id, title, publisher, series_group, age)
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (series_id, title, publisher, series_group, age),
+            )
+        except sqlite3.IntegrityError as exc:
+            skipped += 1
+            log_row_skip(
+                "series",
+                row,
+                f"constraint violation while inserting series_id={series_id}",
+                exc,
+            )
+            continue
+
+        seen_series_ids[series_id] = describe_row(row)
+        inserted += 1
 
     conn.commit()
-    logger.info("Finished inserting series rows")
+    logger.info(
+        "Finished inserting series rows (inserted=%d, skipped=%d)", inserted, skipped
+    )
 
 
 def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
@@ -174,17 +279,44 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
     cur = conn.cursor()
 
     issue_key_cols = ["Core SeriesID", "IssueNrNorm", "VariantNorm"]
-
-    # Deduplicate issues by series + issue number + variant
-    issues_df = df.drop_duplicates(subset=issue_key_cols)
-    logger.info("Populating %d unique issues", len(issues_df))
+    unique_issue_count = df.drop_duplicates(subset=issue_key_cols).shape[0]
+    logger.info(
+        "Processing %d rows to populate up to %d unique issues",
+        len(df),
+        unique_issue_count,
+    )
 
     issue_map = {}
+    issue_sources: dict[tuple[int, str, str], str] = {}
+    inserted = 0
+    skipped = 0
 
-    for _, row in issues_df.iterrows():
-        series_id = int(row["Core SeriesID"])
-        issue_nr = normalize_text(row["IssueNrNorm"])
-        variant = normalize_text(row["VariantNorm"])
+    for _, row in df.iterrows():
+        series_id_raw = row.get("Core SeriesID")
+        if series_id_raw is None or pd.isna(series_id_raw):
+            skipped += 1
+            log_row_skip("issues", row, "missing Core SeriesID")
+            continue
+
+        try:
+            series_id = int(series_id_raw)
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            log_row_skip("issues", row, "invalid Core SeriesID", exc)
+            continue
+
+        issue_nr = normalize_text(row.get("IssueNrNorm", ""))
+        variant = normalize_text(row.get("VariantNorm", ""))
+        key = (series_id, issue_nr, variant)
+        if key in issue_map:
+            skipped += 1
+            existing = issue_sources.get(key, "previous row")
+            log_row_skip(
+                "issues",
+                row,
+                f"duplicate issue key (series_id={series_id}, issue_nr='{issue_nr}', variant='{variant}') already inserted from {existing}",
+            )
+            continue
 
         title = normalize_text(row.get("Title"))
         subtitle = normalize_text(row.get("Subtitle"))
@@ -201,32 +333,46 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
 
         story_arc = normalize_text(row.get("Story Arc"))
 
-        cur.execute(
-            """
-            INSERT INTO issues (
-                series_id, issue_nr, variant,
-                title, subtitle, full_title,
-                cover_date, cover_year, story_arc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """,
-            (
-                series_id,
-                issue_nr,
-                variant,
-                title,
-                subtitle,
-                full_title,
-                cover_date,
-                cover_year,
-                story_arc,
-            ),
-        )
+        try:
+            cur.execute(
+                """
+                INSERT INTO issues (
+                    series_id, issue_nr, variant,
+                    title, subtitle, full_title,
+                    cover_date, cover_year, story_arc
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    series_id,
+                    issue_nr,
+                    variant,
+                    title,
+                    subtitle,
+                    full_title,
+                    cover_date,
+                    cover_year,
+                    story_arc,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            skipped += 1
+            log_row_skip(
+                "issues",
+                row,
+                f"constraint violation for key (series_id={series_id}, issue_nr='{issue_nr}', variant='{variant}')",
+                exc,
+            )
+            continue
 
         issue_id = cur.lastrowid
-        issue_map[(series_id, issue_nr, variant)] = issue_id
+        issue_map[key] = issue_id
+        issue_sources[key] = describe_row(row)
+        inserted += 1
 
     conn.commit()
-    logger.info("Finished inserting issues rows")
+    logger.info(
+        "Finished inserting issues rows (inserted=%d, skipped=%d)", inserted, skipped
+    )
     return issue_map
 
 
@@ -238,9 +384,21 @@ def populate_copies(
     skipped = 0
 
     for _, row in df.iterrows():
-        series_id = int(row["Core SeriesID"])
-        issue_nr = normalize_text(row["IssueNrNorm"])
-        variant = normalize_text(row["VariantNorm"])
+        series_id_raw = row.get("Core SeriesID")
+        if series_id_raw is None or pd.isna(series_id_raw):
+            skipped += 1
+            log_row_skip("copies", row, "missing Core SeriesID")
+            continue
+
+        try:
+            series_id = int(series_id_raw)
+        except (TypeError, ValueError) as exc:
+            skipped += 1
+            log_row_skip("copies", row, "invalid Core SeriesID", exc)
+            continue
+
+        issue_nr = normalize_text(row.get("IssueNrNorm", ""))
+        variant = normalize_text(row.get("VariantNorm", ""))
 
         key = (series_id, issue_nr, variant)
         issue_id = issue_map.get(key)
@@ -249,15 +407,13 @@ def populate_copies(
             # Should not happen since we just built issue_map from the same df,
             # but guard just in case
             skipped += 1
-            logger.warning(
-                "Skipping copy for series_id=%s issue_nr=%s variant=%s because issue_id missing",
-                series_id,
-                issue_nr,
-                variant,
+            log_row_skip(
+                "copies",
+                row,
+                f"issue_id missing for key (series_id={series_id}, issue_nr='{issue_nr}', variant='{variant}')",
             )
             continue
 
-        copy_id = int(row["Core ComicID"])
         clz_comic_id_raw = row.get("Core ComicID")
         clz_comic_id = None
         if not pd.isna(clz_comic_id_raw):
@@ -265,6 +421,7 @@ def populate_copies(
                 clz_comic_id = int(clz_comic_id_raw)
             except ValueError:
                 clz_comic_id = None
+
         custom_label = normalize_text(row.get("Custom Label"))
         fmt = normalize_text(row.get("Format"))
         grade = normalize_text(row.get("Grade"))
@@ -364,67 +521,68 @@ def populate_copies(
                 purchase_price = float(purchase_price_raw)
             except ValueError:
                 purchase_price = None
-                clz_comic_id_raw = row.get("Core ComicID")
-                clz_comic_id = None
-                if not pd.isna(clz_comic_id_raw):
-                    try:
-                        clz_comic_id = int(clz_comic_id_raw)
-                    except ValueError:
-                        clz_comic_id = None
 
-                cur.execute(
-                    """
-                    INSERT INTO copies (
-                        clz_comic_id, issue_id,
-                        custom_label, format, grade,
-                        grader_notes, grading_company,
-                        raw_slabbed, signed_by, slab_cert_number,
-                        purchase_date, purchase_price, purchase_store, purchase_year,
-                        date_sold, price_sold, sold_year,
-                        my_value, covrprice_value, value,
-                        country, language, age, barcode,
-                        cover_price, page_quality,
-                        key_flag, key_category, key_reason, label_type,
-                        no_of_pages, variant_description
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                    """,
-                    (
-                        clz_comic_id,
-                        issue_id,
-                        custom_label,
-                        fmt,
-                        grade,
-                        grader_notes,
-                        grading_company,
-                        raw_slabbed,
-                        signed_by,
-                        slab_cert_number,
-                        purchase_date,
-                        purchase_price,
-                        purchase_store,
-                        purchase_year,
-                        date_sold,
-                        price_sold,
-                        sold_year,
-                        my_value,
-                        covrprice_value,
-                        value,
-                        country,
-                        language,
-                        age,
-                        barcode,
-                        cover_price,
-                        page_quality,
-                        key_flag,
-                        key_category,
-                        key_reason,
-                        label_type,
-                        no_of_pages,
-                        variant_description,
-                    ),
+        try:
+            cur.execute(
+                """
+                INSERT INTO copies (
+                    clz_comic_id, issue_id,
+                    custom_label, format, grade,
+                    grader_notes, grading_company,
+                    raw_slabbed, signed_by, slab_cert_number,
+                    purchase_date, purchase_price, purchase_store, purchase_year,
+                    date_sold, price_sold, sold_year,
+                    my_value, covrprice_value, value,
+                    country, language, age, barcode,
+                    cover_price, page_quality,
+                    key_flag, key_category, key_reason, label_type,
+                    no_of_pages, variant_description
                 )
-                inserted += 1
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    clz_comic_id,
+                    issue_id,
+                    custom_label,
+                    fmt,
+                    grade,
+                    grader_notes,
+                    grading_company,
+                    raw_slabbed,
+                    signed_by,
+                    slab_cert_number,
+                    purchase_date,
+                    purchase_price,
+                    purchase_store,
+                    purchase_year,
+                    date_sold,
+                    price_sold,
+                    sold_year,
+                    my_value,
+                    covrprice_value,
+                    value,
+                    country,
+                    language,
+                    age,
+                    barcode,
+                    cover_price,
+                    page_quality,
+                    key_flag,
+                    key_category,
+                    key_reason,
+                    label_type,
+                    no_of_pages,
+                    variant_description,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            skipped += 1
+            log_row_skip(
+                "copies", row, "constraint violation while inserting copy", exc
+            )
+            continue
+
+        inserted += 1
 
     conn.commit()
     logger.info("Inserted %d copies rows (skipped %d)", inserted, skipped)
