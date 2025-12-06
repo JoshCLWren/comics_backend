@@ -504,7 +504,7 @@ def test_module_guard_executes_main(monkeypatch):
     class DummyCursor:
         lastrowid = 1
 
-        def execute(self, *_args, **_kwargs):
+        def execute(self, *_args, **_kwargs):  # pragma: no cover - stub helper
             return None
 
     class DummyConn:
