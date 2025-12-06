@@ -141,6 +141,14 @@ lint-fix:
 	uv run ruff format .
 
 # ------------------------------------
+# testing helpers
+# ------------------------------------
+test:
+	@$(call log_header,Run tests with coverage guard)
+	@$(call log_step,Executing pytest with 95% minimum coverage)
+	uv run pytest --cov=. --cov-report=term-missing --cov-fail-under=95
+
+# ------------------------------------
 # clean workspace
 # ------------------------------------
 clean:

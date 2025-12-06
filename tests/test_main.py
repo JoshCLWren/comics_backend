@@ -1,10 +1,11 @@
-import os
 import sqlite3
 from typing import Iterator
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from app import db
 from main import app
 
 
@@ -89,14 +90,14 @@ def _seed_data(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         """
-        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year)
-        VALUES (1, 1, '1', '', 'Arrival', 2020)
+        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year, story_arc)
+        VALUES (1, 1, '1', '', 'Arrival', 2020, 'Launch')
         """
     )
     conn.execute(
         """
-        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title)
-        VALUES (2, 1, '2', 'A', 'Second')
+        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, story_arc)
+        VALUES (2, 1, '2', 'A', 'Second', 'Flashback')
         """
     )
     conn.execute(
@@ -176,3 +177,160 @@ def test_missing_series_returns_404(api_client: TestClient):
     resp = api_client.get("/v1/series/999")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "series not found"
+
+
+def test_root_returns_message(api_client: TestClient):
+    resp = api_client.get("/")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["message"] == "hello comics world"
+    assert "documentation" in payload
+
+
+def test_series_filters_and_conflict(api_client: TestClient):
+    resp = api_client.get(
+        "/v1/series", params={"publisher": "ACME", "title_search": "Al"}
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["series"]) == 1
+
+    new_series = {
+        "series_id": 3,
+        "title": "Gamma",
+        "publisher": "Indie",
+        "age": "Golden",
+    }
+    resp = api_client.post("/v1/series", json=new_series)
+    assert resp.status_code == 201
+    assert resp.json()["publisher"] == "Indie"
+
+    resp = api_client.get("/v1/series", params={"publisher": "Indie"})
+    assert resp.status_code == 200
+    assert resp.json()["series"][0]["series_id"] == 3
+
+    resp = api_client.post("/v1/series", json=new_series)
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "series 3 already exists"
+
+
+def test_series_update_and_delete_flow(api_client: TestClient):
+    resp = api_client.patch(
+        "/v1/series/2", json={"title": "Beta Prime", "age": "Bronze"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "Beta Prime"
+    assert body["age"] == "Bronze"
+
+    resp = api_client.get("/v1/series/2")
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Beta Prime"
+
+    resp = api_client.delete("/v1/series/2")
+    assert resp.status_code == 204
+
+    resp = api_client.delete("/v1/series/2")
+    assert resp.status_code == 404
+
+
+def test_series_invalid_page_token(api_client: TestClient):
+    resp = api_client.get("/v1/series", params={"page_token": "-5"})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "invalid page_token"
+
+
+def test_list_issues_filters_and_missing_series(api_client: TestClient):
+    resp = api_client.get("/v1/series/1/issues", params={"story_arc": "Launch"})
+    assert resp.status_code == 200
+    issues = resp.json()["issues"]
+    assert len(issues) == 1
+    assert issues[0]["story_arc"] == "Launch"
+
+    resp = api_client.get("/v1/series/999/issues")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "series 999 not found"
+
+
+def test_issue_conflict_and_variant_normalization(api_client: TestClient):
+    payload = {
+        "issue_nr": "10",
+        "variant": None,
+        "title": "Special",
+        "story_arc": "Launch",
+    }
+    resp = api_client.post("/v1/series/1/issues", json=payload)
+    assert resp.status_code == 201
+    created = resp.json()
+    assert created["variant"] == ""
+
+    resp = api_client.post("/v1/series/1/issues", json=payload)
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "issue already exists for this series"
+
+
+def test_update_issue_and_delete(api_client: TestClient):
+    resp = api_client.patch(
+        "/v1/series/1/issues/1", json={"title": "Arrival+", "variant": None}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["variant"] == ""
+
+    resp = api_client.get("/v1/series/1/issues/1")
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Arrival+"
+
+    resp = api_client.delete("/v1/series/1/issues/1")
+    assert resp.status_code == 204
+
+    resp = api_client.delete("/v1/series/1/issues/1")
+    assert resp.status_code == 404
+
+    resp = api_client.get("/v1/series/1/issues/1")
+    assert resp.status_code == 404
+
+    resp = api_client.patch(
+        "/v1/series/1/issues/999", json={"title": "Ghost"}
+    )
+    assert resp.status_code == 404
+
+
+def test_copy_crud_and_missing_resources(api_client: TestClient):
+    resp = api_client.get("/v1/issues/1/copies/999")
+    assert resp.status_code == 404
+
+    resp = api_client.get("/v1/issues/999/copies")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "issue 999 not found"
+
+    resp = api_client.post("/v1/issues/999/copies", json={"format": "Digital"})
+    assert resp.status_code == 404
+
+    create_payload = {"format": "Digital", "value": 5.5}
+    resp = api_client.post("/v1/issues/1/copies", json=create_payload)
+    assert resp.status_code == 201
+    copy_id = resp.json()["copy_id"]
+
+    resp = api_client.patch(
+        f"/v1/issues/1/copies/{copy_id}", json={"value": 42.0}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["value"] == 42.0
+
+    resp = api_client.delete(f"/v1/issues/1/copies/{copy_id}")
+    assert resp.status_code == 204
+
+    resp = api_client.patch(
+        f"/v1/issues/1/copies/{copy_id}", json={"value": 55.0}
+    )
+    assert resp.status_code == 404
+
+    resp = api_client.delete(f"/v1/issues/1/copies/{copy_id}")
+    assert resp.status_code == 404
+
+
+def test_resolve_db_path_errors_when_missing(tmp_path, monkeypatch):
+    missing = tmp_path / "nope.db"
+    monkeypatch.setenv(db.DB_PATH_ENV_VAR, str(missing))
+    with pytest.raises(HTTPException) as exc:
+        db.resolve_db_path()
+    assert exc.value.status_code == 500
