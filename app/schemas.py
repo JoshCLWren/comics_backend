@@ -1,4 +1,5 @@
 """Pydantic schema definitions for the comics API."""
+
 from __future__ import annotations
 
 from typing import Any

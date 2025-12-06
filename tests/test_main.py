@@ -1,5 +1,5 @@
 import sqlite3
-from bdb import Breakpoint
+import sys
 from typing import Iterator
 
 import pytest
@@ -112,17 +112,25 @@ def _seed_data(conn: sqlite3.Connection) -> None:
 
 
 @pytest.fixture()
-def api_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
-    db_path = tmp_path / "test.db"
-    conn = sqlite3.connect(db_path)
+def db_path(tmp_path, monkeypatch):
+    """Create a fresh temp DB and point COMICS_DB_PATH at it."""
+    path = tmp_path / "test.db"
+    conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
     _create_schema(conn)
     _seed_data(conn)
     conn.commit()
     conn.close()
 
-    monkeypatch.setenv("COMICS_DB_PATH", str(db_path))
-    client = TestClient(app)
+    monkeypatch.setenv("COMICS_DB_PATH", str(path))
+    return path
+
+
+@pytest.fixture()
+def api_client(db_path) -> Iterator[TestClient]:
+    """FastAPI TestClient wired to the temp DB."""
+    # COMICS_DB_PATH already set by db_path fixture
+    client = TestClient(app, raise_server_exceptions=True)
     try:
         yield client
     finally:
@@ -130,15 +138,48 @@ def api_client(tmp_path, monkeypatch) -> Iterator[TestClient]:
 
 
 def test_list_series_paginates(api_client: TestClient):
+    print("\nTEST: start test_list_series_paginates", file=sys.stderr, flush=True)
+
+    print("TEST: before first GET /v1/series", file=sys.stderr, flush=True)
     resp = api_client.get("/v1/series", params={"page_size": 1})
+    print("TEST: after first GET /v1/series", file=sys.stderr, flush=True)
+
+    print(
+        f"TEST: first response status = {resp.status_code}", file=sys.stderr, flush=True
+    )
+    print(f"TEST: first response text = {resp.text}", file=sys.stderr, flush=True)
+
     assert resp.status_code == 200
+
+    print("TEST: parsing JSON for first page", file=sys.stderr, flush=True)
     body = resp.json()
+    print(f"TEST: parsed body = {body}", file=sys.stderr, flush=True)
+
+    print("TEST: checking first page assertions", file=sys.stderr, flush=True)
     assert body["series"][0]["series_id"] == 1
     assert body["next_page_token"] == "1"
 
+    print("TEST: before second GET /v1/series", file=sys.stderr, flush=True)
     resp = api_client.get("/v1/series", params={"page_token": body["next_page_token"]})
+    print("TEST: after second GET /v1/series", file=sys.stderr, flush=True)
+
+    print(
+        f"TEST: second response status = {resp.status_code}",
+        file=sys.stderr,
+        flush=True,
+    )
+    print(f"TEST: second response text = {resp.text}", file=sys.stderr, flush=True)
+
     assert resp.status_code == 200
-    assert resp.json()["series"][0]["series_id"] == 2
+
+    print("TEST: parsing JSON for second page", file=sys.stderr, flush=True)
+    body2 = resp.json()
+    print(f"TEST: parsed second page body = {body2}", file=sys.stderr, flush=True)
+
+    print("TEST: checking second page assertions", file=sys.stderr, flush=True)
+    assert body2["series"][0]["series_id"] == 2
+
+    print("TEST: end test_list_series_paginates", file=sys.stderr, flush=True)
 
 
 def test_create_issue_and_fetch(api_client: TestClient):

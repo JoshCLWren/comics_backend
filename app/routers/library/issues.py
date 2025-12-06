@@ -1,4 +1,5 @@
 """Issue endpoints."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -47,9 +48,7 @@ async def list_issues(
     params.extend([page_size + 1, offset])
     async with conn.execute(query, params) as cursor:
         rows = await cursor.fetchall()
-    payload = [
-        helpers.row_to_model(schemas.Issue, row) for row in rows[:page_size]
-    ]
+    payload = [helpers.row_to_model(schemas.Issue, row) for row in rows[:page_size]]
     return schemas.ListIssuesResponse(
         issues=payload,
         next_page_token=helpers.next_page_token(offset, page_size, len(rows)),
