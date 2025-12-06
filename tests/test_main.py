@@ -1,4 +1,5 @@
 import sqlite3
+from bdb import Breakpoint
 from typing import Iterator
 
 import pytest
@@ -288,9 +289,7 @@ def test_update_issue_and_delete(api_client: TestClient):
     resp = api_client.get("/v1/series/1/issues/1")
     assert resp.status_code == 404
 
-    resp = api_client.patch(
-        "/v1/series/1/issues/999", json={"title": "Ghost"}
-    )
+    resp = api_client.patch("/v1/series/1/issues/999", json={"title": "Ghost"})
     assert resp.status_code == 404
 
 
@@ -310,18 +309,14 @@ def test_copy_crud_and_missing_resources(api_client: TestClient):
     assert resp.status_code == 201
     copy_id = resp.json()["copy_id"]
 
-    resp = api_client.patch(
-        f"/v1/issues/1/copies/{copy_id}", json={"value": 42.0}
-    )
+    resp = api_client.patch(f"/v1/issues/1/copies/{copy_id}", json={"value": 42.0})
     assert resp.status_code == 200
     assert resp.json()["value"] == 42.0
 
     resp = api_client.delete(f"/v1/issues/1/copies/{copy_id}")
     assert resp.status_code == 204
 
-    resp = api_client.patch(
-        f"/v1/issues/1/copies/{copy_id}", json={"value": 55.0}
-    )
+    resp = api_client.patch(f"/v1/issues/1/copies/{copy_id}", json={"value": 55.0})
     assert resp.status_code == 404
 
     resp = api_client.delete(f"/v1/issues/1/copies/{copy_id}")
