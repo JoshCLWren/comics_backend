@@ -1,0 +1,16 @@
+services:
+  ci:
+    build:
+      context: .
+      dockerfile: Dockerfile.ci
+    working_dir: /app
+    volumes:
+      - .:/app
+      - uv-cache:/root/.cache/uv
+    environment:
+      UV_CACHE_DIR: /root/.cache/uv
+    entrypoint: []
+    command: ["/bin/bash"]
+
+volumes:
+  uv-cache:
