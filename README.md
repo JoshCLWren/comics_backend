@@ -57,3 +57,22 @@ shape, which mirrors the Google spec and lets clients loop until `next_page_toke
 is empty. The router also enforces typical guide recommendations such as 404-versus-409
 distinctions, explicit field masks (implemented via sparse payloads), and nested
 resource names so relationships remain obvious in the URI.
+
+## Load testing
+
+`make load-test` ensures the API is running before launching a headless [Locust](https://locust.io/)
+worker defined in `scripts/load_test.py`. The Locust user replays rows from
+`data/clz_export.csv` (or whatever path you set via `LOAD_TEST_CSV_PATH`) by creating
+series, issues, and copies, then exercising common list/update/delete flows. Tweak the
+replay characteristics by overriding the following Makefile variables:
+
+- `LOAD_TEST_LIMIT` &mdash; number of CSV rows to enqueue (set to `0` for the full file)
+- `LOAD_TEST_CONCURRENCY` &mdash; Locust user count/spawn rate
+- `LOAD_TEST_TIMEOUT` &mdash; per-request timeout forwarded to Locust
+- `LOAD_TEST_PORT` &mdash; target API port; `run_load_test.py` will boot uvicorn if no server is listening
+
+Example:
+
+```bash
+LOAD_TEST_LIMIT=100 LOAD_TEST_CONCURRENCY=10 make load-test
+```

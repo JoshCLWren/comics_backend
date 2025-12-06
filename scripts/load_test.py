@@ -1,18 +1,53 @@
 #!/usr/bin/env python
-"""Simple load test that replays CSV data through the API."""
+"""Locust-powered load test that replays CSV data through the API."""
+
 from __future__ import annotations
 
-import argparse
-import asyncio
 import csv
 import logging
+import os
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-import httpx
+from gevent.lock import Semaphore
+from gevent.queue import Empty, Queue
+from locust import HttpUser, between, events, task
+from locust.exception import StopUser
 
-logger = logging.getLogger("load_test")
+logger = logging.getLogger("load_test.locust")
+
+DEFAULT_CSV_PATH = Path("data") / "clz_export.csv"
+CSV_PATH = Path(os.environ.get("LOAD_TEST_CSV_PATH", str(DEFAULT_CSV_PATH))).resolve()
+
+
+def _parse_env_int(name: str) -> int | None:
+    value = os.environ.get(name)
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid value for {name}: {value!r}") from exc
+
+
+def _parse_env_float(name: str, default: float) -> float:
+    value = os.environ.get(name)
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid value for {name}: {value!r}") from exc
+
+
+ROW_LIMIT = _parse_env_int("LOAD_TEST_ROW_LIMIT")
+REQUEST_TIMEOUT = _parse_env_float("LOAD_TEST_TIMEOUT", 30.0)
+
+ROW_QUEUE: Queue[tuple[int, dict[str, str]]] | None = None
+TOTAL_ROWS = 0
+STATS: Counter[str] = Counter()
+STATS_LOCK = Semaphore()
 
 
 def clean(value: str | None) -> str | None:
@@ -128,120 +163,173 @@ def rows_from_csv(csv_path: Path, limit: int | None) -> list[dict[str, str]]:
     return rows
 
 
-class LoadTester:
-    def __init__(
-        self,
-        base_url: str,
-        csv_rows: list[dict[str, str]],
-        concurrency: int,
-        timeout: float,
-    ) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.rows = csv_rows
-        self.sem = asyncio.Semaphore(concurrency)
-        self.timeout = timeout
-        self.stats: Counter[str] = Counter()
+def record_stat(name: str, value: int = 1) -> None:
+    with STATS_LOCK:
+        STATS[name] += value
 
-    async def run(self) -> None:
-        logger.info(
-            "starting load test against %s for %s rows", self.base_url, len(self.rows)
-        )
-        async with httpx.AsyncClient(
-            base_url=self.base_url, timeout=self.timeout
-        ) as client:
-            self.client = client
-            await self._warmup()
-            tasks = [
-                asyncio.create_task(self._bounded_process(idx, row))
-                for idx, row in enumerate(self.rows, start=1)
-            ]
-            await asyncio.gather(*tasks)
-        self._print_summary()
 
-    async def _warmup(self) -> None:
+def next_row() -> tuple[int, dict[str, str]] | None:
+    if ROW_QUEUE is None:
+        return None
+    try:
+        return ROW_QUEUE.get_nowait()
+    except Empty:
+        return None
+
+
+@events.init.add_listener
+def _configure_dataset(environment, **_kwargs) -> None:
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
+    rows = rows_from_csv(CSV_PATH, ROW_LIMIT)
+    if not rows:
+        raise RuntimeError(f"No rows available in {CSV_PATH}")
+    global ROW_QUEUE, TOTAL_ROWS
+    ROW_QUEUE = Queue(len(rows))
+    for item in enumerate(rows, start=1):
+        ROW_QUEUE.put_nowait(item)
+    TOTAL_ROWS = len(rows)
+    logger.info(
+        "prepared %s rows from %s (limit=%s)",
+        TOTAL_ROWS,
+        CSV_PATH,
+        ROW_LIMIT or "all",
+    )
+
+
+@events.test_stop.add_listener
+def _log_summary(environment, **_kwargs) -> None:
+    if not STATS:
+        return
+    logger.info("load test summary:")
+    for key, value in sorted(STATS.items()):
+        logger.info("  %s: %s", key, value)
+
+
+class LibraryLoadUser(HttpUser):
+    wait_time = between(0.01, 0.1)
+    request_timeout = REQUEST_TIMEOUT
+
+    def on_start(self) -> None:
+        self._warmup()
+
+    def _warmup(self) -> None:
+        with self.client.get(
+            "/",
+            name="root:get",
+            timeout=self.request_timeout,
+            catch_response=True,
+        ) as response:
+            if response.status_code >= 400:
+                response.failure("API unavailable")
+                raise StopUser()
+            response.success()
+
+    @task
+    def replay_catalog_row(self) -> None:
+        item = next_row()
+        if item is None:
+            raise StopUser()
+        idx, row = item
         try:
-            response = await self.client.get("/")
-            response.raise_for_status()
-        except httpx.HTTPError as exc:  # pragma: no cover - best effort check
-            logger.error(
-                "unable to reach API at %s (%s)", self.base_url, exc
-            )
-            raise SystemExit(1) from exc
+            self.process_row(idx, row)
+        except Exception:  # pragma: no cover - load generator best effort
+            logger.exception("row %s failed", idx)
+            record_stat("failures")
 
-    async def _bounded_process(self, idx: int, row: dict[str, str]) -> None:
-        async with self.sem:
-            try:
-                await self.process_row(idx, row)
-            except Exception:  # pragma: no cover - load script best effort
-                logger.exception("row %s failed", idx)
-                self.stats["failures"] += 1
-
-    async def process_row(self, idx: int, row: dict[str, str]) -> None:
+    def process_row(self, idx: int, row: dict[str, str]) -> None:
         series_payload = build_series_payload(row)
         if not series_payload:
-            self.stats["series_skipped"] += 1
+            record_stat("series_skipped")
             return
         issue_payload = build_issue_payload(row)
         if not issue_payload:
-            self.stats["issue_skipped"] += 1
+            record_stat("issue_skipped")
             return
         copy_payload = build_copy_payload(row)
 
-        series = await self.ensure_series(series_payload)
-        await self.exercise_series(series_payload["series_id"], series)
+        series = self.ensure_series(series_payload)
+        self.exercise_series(series_payload["series_id"], series)
 
-        issue = await self.ensure_issue(series["series_id"], issue_payload)
-        await self.exercise_issue(series["series_id"], issue, issue_payload)
+        issue = self.ensure_issue(series["series_id"], issue_payload)
+        self.exercise_issue(series["series_id"], issue, issue_payload)
 
-        copy = await self.create_copy(issue["issue_id"], copy_payload)
-        await self.exercise_copies(issue["issue_id"], copy, copy_payload)
+        copy = self.create_copy(issue["issue_id"], copy_payload)
+        self.exercise_copies(issue["issue_id"], copy, copy_payload)
 
-        self.stats["rows_processed"] += 1
-        if idx % 25 == 0:
-            logger.info("processed %s rows so far", idx)
+        record_stat("rows_processed")
+        if TOTAL_ROWS and idx % 25 == 0:
+            logger.info("processed %s/%s rows", idx, TOTAL_ROWS)
 
-    async def ensure_series(self, payload: dict[str, Any]) -> dict[str, Any]:
-        response = await self.client.post("/v1/series", json=payload)
-        if response.status_code == 201:
-            self.stats["series_created"] += 1
-            return response.json()
-        if response.status_code == 409:
-            existing = await self.client.get(f"/v1/series/{payload['series_id']}")
-            existing.raise_for_status()
-            self.stats["series_reused"] += 1
-            return existing.json()
-        response.raise_for_status()
-        return response.json()
+    def ensure_series(self, payload: dict[str, Any]) -> dict[str, Any]:
+        with self.client.post(
+            "/v1/series",
+            json=payload,
+            name="series:create",
+            timeout=self.request_timeout,
+            catch_response=True,
+        ) as response:
+            if response.status_code == 201:
+                record_stat("series_created")
+                return response.json()
+            if response.status_code == 409:
+                response.success()
+                existing = self.client.get(
+                    f"/v1/series/{payload['series_id']}",
+                    name="series:get",
+                    timeout=self.request_timeout,
+                )
+                existing.raise_for_status()
+                record_stat("series_reused")
+                return existing.json()
+            response.failure(f"unexpected status {response.status_code}")
+            raise RuntimeError(
+                f"failed to create series {payload['series_id']}: {response.text}"
+            )
 
-    async def ensure_issue(
-        self, series_id: int, payload: dict[str, Any]
-    ) -> dict[str, Any]:
-        response = await self.client.post(
-            f"/v1/series/{series_id}/issues", json=payload
-        )
-        if response.status_code == 201:
-            self.stats["issues_created"] += 1
-            return response.json()
-        if response.status_code == 409:
-            issue = await self.find_issue(series_id, payload["issue_nr"], payload["variant"])
-            if issue:
-                self.stats["issues_reused"] += 1
-                return issue
-        response.raise_for_status()
-        return response.json()
+    def ensure_issue(self, series_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        with self.client.post(
+            f"/v1/series/{series_id}/issues",
+            json=payload,
+            name="issues:create",
+            timeout=self.request_timeout,
+            catch_response=True,
+        ) as response:
+            if response.status_code == 201:
+                record_stat("issues_created")
+                return response.json()
+            if response.status_code == 409:
+                response.success()
+                issue = self.find_issue(
+                    series_id, payload["issue_nr"], payload["variant"]
+                )
+                if issue:
+                    record_stat("issues_reused")
+                    return issue
+                response.failure("issue conflict but issue missing")
+                raise RuntimeError(
+                    f"conflict without match for issue {payload['issue_nr']}"
+                )
+            response.failure(f"unexpected status {response.status_code}")
+            raise RuntimeError(
+                f"failed to create issue {payload['issue_nr']}: {response.text}"
+            )
 
-    async def find_issue(
+    def find_issue(
         self, series_id: int, issue_nr: str, variant: str
     ) -> dict[str, Any] | None:
         page_token: str | None = None
         while True:
-            response = await self.client.get(
+            response = self.client.get(
                 f"/v1/series/{series_id}/issues",
                 params={"page_size": 100, "page_token": page_token},
+                name="issues:list",
+                timeout=self.request_timeout,
             )
             response.raise_for_status()
             payload = response.json()
-            for issue in payload["issues"]:
+            for issue in payload.get("issues", []):
                 if issue["issue_nr"] == issue_nr and issue["variant"] == variant:
                     return issue
             page_token = payload.get("next_page_token")
@@ -249,12 +337,26 @@ class LoadTester:
                 break
         return None
 
-    async def exercise_series(self, series_id: int, payload: dict[str, Any]) -> None:
-        await self.client.get("/v1/series", params={"page_size": 5})
-        await self.client.get(f"/v1/series/{series_id}")
+    def exercise_series(self, series_id: int, payload: dict[str, Any]) -> None:
+        self.client.get(
+            "/v1/series",
+            params={"page_size": 5},
+            name="series:list",
+            timeout=self.request_timeout,
+        )
+        self.client.get(
+            f"/v1/series/{series_id}",
+            name="series:get",
+            timeout=self.request_timeout,
+        )
         update = self._series_update_payload(payload)
         if update:
-            await self.client.patch(f"/v1/series/{series_id}", json=update)
+            self.client.patch(
+                f"/v1/series/{series_id}",
+                json=update,
+                name="series:update",
+                timeout=self.request_timeout,
+            )
 
     def _series_update_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         for field in ("title", "publisher", "series_group", "age"):
@@ -263,23 +365,30 @@ class LoadTester:
                 return {field: value}
         return None
 
-    async def exercise_issue(
+    def exercise_issue(
         self,
         series_id: int,
         issue: dict[str, Any],
         payload: dict[str, Any],
     ) -> None:
-        await self.client.get(
-            f"/v1/series/{series_id}/issues", params={"page_size": 5}
+        self.client.get(
+            f"/v1/series/{series_id}/issues",
+            params={"page_size": 5},
+            name="issues:list",
+            timeout=self.request_timeout,
         )
-        await self.client.get(
-            f"/v1/series/{series_id}/issues/{issue['issue_id']}"
+        self.client.get(
+            f"/v1/series/{series_id}/issues/{issue['issue_id']}",
+            name="issues:get",
+            timeout=self.request_timeout,
         )
         update = self._issue_update_payload(payload, issue)
         if update:
-            await self.client.patch(
+            self.client.patch(
                 f"/v1/series/{series_id}/issues/{issue['issue_id']}",
                 json=update,
+                name="issues:update",
+                timeout=self.request_timeout,
             )
 
     def _issue_update_payload(
@@ -291,102 +400,50 @@ class LoadTester:
                 return {field: value}
         return None
 
-    async def create_copy(
-        self, issue_id: int, payload: dict[str, Any]
-    ) -> dict[str, Any]:
-        response = await self.client.post(
-            f"/v1/issues/{issue_id}/copies", json=payload
+    def create_copy(self, issue_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self.client.post(
+            f"/v1/issues/{issue_id}/copies",
+            json=payload,
+            name="copies:create",
+            timeout=self.request_timeout,
         )
         response.raise_for_status()
-        self.stats["copies_created"] += 1
+        record_stat("copies_created")
         return response.json()
 
-    async def exercise_copies(
+    def exercise_copies(
         self,
         issue_id: int,
         copy: dict[str, Any],
         payload: dict[str, Any],
     ) -> None:
-        await self.client.get(
-            f"/v1/issues/{issue_id}/copies", params={"page_size": 5}
+        self.client.get(
+            f"/v1/issues/{issue_id}/copies",
+            params={"page_size": 5},
+            name="copies:list",
+            timeout=self.request_timeout,
         )
-        await self.client.get(
-            f"/v1/issues/{issue_id}/copies/{copy['copy_id']}"
+        self.client.get(
+            f"/v1/issues/{issue_id}/copies/{copy['copy_id']}",
+            name="copies:get",
+            timeout=self.request_timeout,
         )
         update = self._copy_update_payload(payload, copy)
-        await self.client.patch(
+        self.client.patch(
             f"/v1/issues/{issue_id}/copies/{copy['copy_id']}",
             json=update,
+            name="copies:update",
+            timeout=self.request_timeout,
         )
-        await self.client.delete(
-            f"/v1/issues/{issue_id}/copies/{copy['copy_id']}"
+        self.client.delete(
+            f"/v1/issues/{issue_id}/copies/{copy['copy_id']}",
+            name="copies:delete",
+            timeout=self.request_timeout,
         )
-        self.stats["copies_deleted"] += 1
+        record_stat("copies_deleted")
 
     def _copy_update_payload(
         self, payload: dict[str, Any], copy: dict[str, Any]
     ) -> dict[str, Any]:
         label = payload.get("custom_label") or f"LoadTest Copy {copy['copy_id']}"
         return {"custom_label": label}
-
-    def _print_summary(self) -> None:
-        logger.info("load test summary:")
-        for key, value in sorted(self.stats.items()):
-            logger.info("  %s: %s", key, value)
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Replay CSV rows against the API.")
-    parser.add_argument(
-        "--csv",
-        type=Path,
-        default=Path("data/clz_export.csv"),
-        help="Path to the CLZ export file.",
-    )
-    parser.add_argument(
-        "--base-url",
-        default="http://127.0.0.1:8000",
-        help="FastAPI server base URL (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=50,
-        help="Number of rows to replay (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=5,
-        help="Concurrent requests to issue (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=30.0,
-        help="HTTP timeout in seconds (default: %(default)s)",
-    )
-    return parser.parse_args()
-
-
-async def async_main() -> None:
-    args = parse_args()
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-    )
-    rows = rows_from_csv(args.csv, args.limit)
-    tester = LoadTester(
-        base_url=args.base_url,
-        csv_rows=rows,
-        concurrency=max(1, args.concurrency),
-        timeout=args.timeout,
-    )
-    await tester.run()
-
-
-def main() -> None:
-    asyncio.run(async_main())
-
-
-if __name__ == "__main__":
-    main()
