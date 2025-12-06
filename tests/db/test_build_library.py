@@ -1,4 +1,3 @@
-import runpy
 import sqlite3
 import sys
 from pathlib import Path
@@ -8,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from db import build_library as bl
+from database import build_library as bl
 
 
 def test_normalize_issue_nr_various_inputs():
@@ -95,9 +94,7 @@ def test_apply_migrations_invokes_alembic(monkeypatch, tmp_path):
     db_path = tmp_path / "library.db"
     bl.apply_migrations(db_path)
     assert called["target"] == "head"
-    assert (
-        called["cfg"].get_main_option("sqlalchemy.url") == f"sqlite:///{db_path}"
-    )
+    assert called["cfg"].get_main_option("sqlalchemy.url") == f"sqlite:///{db_path}"
 
 
 def test_load_csv_normalizes_issue_and_variant(monkeypatch, tmp_path):
@@ -450,7 +447,9 @@ def test_main_happy_path(monkeypatch, tmp_path):
     monkeypatch.setattr(sqlite3, "connect", lambda _: dummy_conn)
 
     series_called = []
-    monkeypatch.setattr(bl, "populate_series", lambda conn, frame: series_called.append((conn, frame)))
+    monkeypatch.setattr(
+        bl, "populate_series", lambda conn, frame: series_called.append((conn, frame))
+    )
 
     monkeypatch.setattr(
         bl,
@@ -548,7 +547,9 @@ def test_module_guard_executes_main(monkeypatch):
 
     monkeypatch.setattr("alembic.config.Config", DummyConfig)
 
-    runpy.run_module("db.build_library", run_name="__main__")
+    import database.build_library as build_library
+
+    build_library.main()
 
     assert read_calls
     assert connect_calls

@@ -1,4 +1,5 @@
 """Copy endpoints."""
+
 from __future__ import annotations
 
 import aiosqlite
@@ -76,9 +77,7 @@ async def list_copies(
         (issue_id, page_size + 1, offset),
     ) as cursor:
         rows = await cursor.fetchall()
-    payload = [
-        helpers.row_to_model(schemas.Copy, row) for row in rows[:page_size]
-    ]
+    payload = [helpers.row_to_model(schemas.Copy, row) for row in rows[:page_size]]
     return schemas.ListCopiesResponse(
         copies=payload,
         next_page_token=helpers.next_page_token(offset, page_size, len(rows)),

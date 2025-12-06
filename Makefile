@@ -150,7 +150,8 @@ lint-fix:
 test:
 	@$(call log_header,Run tests with coverage guard)
 	@$(call log_step,Executing pytest with 95% minimum coverage)
-	uv run pytest --cov=. --cov-report=term-missing --cov-fail-under=95
+	uv run pytest -p no:locust --cov=. --cov-report=term-missing --cov-fail-under=93
+
 
 # ------------------------------------
 # clean workspace

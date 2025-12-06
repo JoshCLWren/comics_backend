@@ -1,4 +1,5 @@
 """Grouped routers for the library endpoints."""
+
 from fastapi import APIRouter
 
 from . import copies, issues, series

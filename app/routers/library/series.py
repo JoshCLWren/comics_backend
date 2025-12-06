@@ -1,10 +1,11 @@
 """Series endpoints."""
+
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 
 import aiosqlite
-import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app import schemas
@@ -26,17 +27,31 @@ async def list_series(
         default=None, description="Substring filter for series title"
     ),
 ) -> schemas.ListSeriesResponse:
+    print("handler /series: start", flush=True)
+    print(
+        f"handler /series: page_size={page_size}, page_token={page_token}, publisher={publisher}, title_search={title_search}",
+        flush=True,
+    )
+
     offset = helpers.parse_page_token(page_token)
+    print(f"handler /series: offset={offset}", flush=True)
+
     params: list[Any] = []
     clauses: list[str] = []
+
     if publisher:
+        print("handler /series: adding publisher clause", flush=True)
         clauses.append("publisher = ?")
         params.append(publisher)
+
     if title_search:
+        print("handler /series: adding title_search clause", flush=True)
         clauses.append("title LIKE ?")
         params.append(f"%{title_search}%")
 
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    print(f"handler /series: where='{where}'", flush=True)
+
     query = f"""
         SELECT series_id, title, publisher, series_group, age
         FROM series
@@ -45,14 +60,23 @@ async def list_series(
         LIMIT ? OFFSET ?
     """
     params.extend([page_size + 1, offset])
+    print(f"handler /series: about to execute query with params={params}", flush=True)
+
     async with conn.execute(query, params) as cursor:
+        print("handler /series: query executed, before fetchall", flush=True)
         rows = await cursor.fetchall()
-    payload = [
-        helpers.row_to_model(schemas.Series, row) for row in rows[:page_size]
-    ]
+        print(f"handler /series: after fetchall, rows={len(rows)}", flush=True)
+
+    payload = [helpers.row_to_model(schemas.Series, row) for row in rows[:page_size]]
+    print(f"handler /series: built payload size={len(payload)}", flush=True)
+
+    next_token = helpers.next_page_token(offset, page_size, len(rows))
+    print(f"handler /series: next_page_token={next_token}", flush=True)
+
+    print("handler /series: returning response", flush=True)
     return schemas.ListSeriesResponse(
         series=payload,
-        next_page_token=helpers.next_page_token(offset, page_size, len(rows)),
+        next_page_token=next_token,
     )
 
 
@@ -128,9 +152,7 @@ async def update_series(
     return await get_series(series_id, conn)
 
 
-@router.delete(
-    "/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_series(
     series_id: int, conn: aiosqlite.Connection = Depends(get_connection)
 ) -> None:
