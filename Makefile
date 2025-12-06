@@ -126,6 +126,21 @@ import-data:
 	uv run python db/build_library.py
 
 # ------------------------------------
+# linting helpers
+# ------------------------------------
+lint:
+	@$(call log_header,Run lint checks)
+	@$(call log_step,Running Ruff static analysis)
+	uv run ruff check .
+
+lint-fix:
+	@$(call log_header,Autofix lint issues)
+	@$(call log_step,Running Ruff autofix pass)
+	uv run ruff check --fix .
+	@$(call log_step,Applying Ruff formatter)
+	uv run ruff format .
+
+# ------------------------------------
 # clean workspace
 # ------------------------------------
 clean:

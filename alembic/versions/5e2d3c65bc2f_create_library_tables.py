@@ -1,10 +1,11 @@
 """create library tables
 
 Revision ID: 5e2d3c65bc2f
-Revises: 
+Revises:
 Create Date: 2025-12-06 11:08:10.905577
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
