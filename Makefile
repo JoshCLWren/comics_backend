@@ -1,5 +1,9 @@
 PY_VERSION = 3.12
 APP_MODULE = main:app
+LOAD_TEST_PORT ?= 8000
+LOAD_TEST_LIMIT ?= 50
+LOAD_TEST_CONCURRENCY ?= 5
+LOAD_TEST_TIMEOUT ?= 30
 
 # ------------------------------------
 # color palette
@@ -158,3 +162,14 @@ clean:
 	@rm -f pyproject.toml
 	@rm -rf src
 	@rm -rf __pycache__
+
+.PHONY: load-test
+load-test:
+	@$(call log_header,Run load test replay)
+	@uv run python scripts/run_load_test.py \
+		--host 127.0.0.1 \
+		--port $(LOAD_TEST_PORT) \
+		--limit $(LOAD_TEST_LIMIT) \
+		--concurrency $(LOAD_TEST_CONCURRENCY) \
+		--timeout $(LOAD_TEST_TIMEOUT) \
+		--app-module $(APP_MODULE)
