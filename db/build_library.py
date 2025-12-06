@@ -3,12 +3,15 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from alembic import command
+from alembic.config import Config
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 CSV_PATH = Path("./data/clz_export.csv")
 DB_PATH = Path("my_database.db")
+ALEMBIC_INI_PATH = Path("alembic.ini")
 
 
 def normalize_issue_nr(value) -> str:
@@ -103,88 +106,21 @@ def log_row_skip(
         logger.warning("%s: skipped %s - %s", stage, context, reason)
 
 
-def create_schema(conn: sqlite3.Connection) -> None:
-    cur = conn.cursor()
+def apply_migrations(db_path: Path) -> None:
+    """
+    Build or update the SQLite schema using Alembic migrations.
+    """
+    if not ALEMBIC_INI_PATH.exists():
+        raise FileNotFoundError(
+            f"Alembic configuration not found at {ALEMBIC_INI_PATH}"
+        )
 
-    # Drop existing tables so the script is idempotent and reproducible
-    cur.execute("DROP TABLE IF EXISTS copies;")
-    cur.execute("DROP TABLE IF EXISTS issues;")
-    cur.execute("DROP TABLE IF EXISTS series;")
+    alembic_cfg = Config(str(ALEMBIC_INI_PATH))
+    alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
+    alembic_cfg.attributes["configure_logger"] = False
 
-    logger.info("Creating tables: series, issues, copies")
-    cur.execute(
-        """
-        CREATE TABLE series (
-            series_id INTEGER PRIMARY KEY,
-            title TEXT,
-            publisher TEXT,
-            series_group TEXT,
-            age TEXT
-        );
-        """
-    )
-
-    cur.execute(
-        """
-        CREATE TABLE issues (
-            issue_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            series_id INTEGER NOT NULL,
-            issue_nr TEXT,
-            variant TEXT,
-            title TEXT,
-            subtitle TEXT,
-            full_title TEXT,
-            cover_date TEXT,
-            cover_year INTEGER,
-            story_arc TEXT,
-            UNIQUE(series_id, issue_nr, variant),
-            FOREIGN KEY(series_id) REFERENCES series(series_id)
-        );
-        """
-    )
-
-    cur.execute(
-        """
-        CREATE TABLE copies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            clz_comic_id INTEGER,
-            issue_id INTEGER NOT NULL,
-            custom_label TEXT,
-            format TEXT,
-            grade TEXT,
-            grader_notes TEXT,
-            grading_company TEXT,
-            raw_slabbed TEXT,
-            signed_by TEXT,
-            slab_cert_number TEXT,
-            purchase_date TEXT,
-            purchase_price REAL,
-            purchase_store TEXT,
-            purchase_year INTEGER,
-            date_sold TEXT,
-            price_sold REAL,
-            sold_year INTEGER,
-            my_value REAL,
-            covrprice_value REAL,
-            value REAL,
-            country TEXT,
-            language TEXT,
-            age TEXT,
-            barcode TEXT,
-            cover_price REAL,
-            page_quality TEXT,
-            key_flag TEXT,
-            key_category TEXT,
-            key_reason TEXT,
-            label_type TEXT,
-            no_of_pages INTEGER,
-            variant_description TEXT,
-            FOREIGN KEY(issue_id) REFERENCES issues(issue_id)
-        );
-        """
-    )
-
-    conn.commit()
+    logger.info("Applying Alembic migrations to %s", db_path)
+    command.upgrade(alembic_cfg, "head")
 
 
 def load_csv() -> pd.DataFrame:
@@ -599,10 +535,14 @@ def main() -> None:
 
     logger.info("Starting database build using CSV %s", CSV_PATH)
     df = load_csv()
+    if DB_PATH.exists():
+        logger.info("Removing existing database at %s", DB_PATH)
+        DB_PATH.unlink()
+
+    apply_migrations(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
 
     try:
-        create_schema(conn)
         populate_series(conn, df)
         issue_map = populate_issues(conn, df)
         populate_copies(conn, df, issue_map)
