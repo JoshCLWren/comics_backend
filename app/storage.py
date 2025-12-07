@@ -138,7 +138,7 @@ async def delete_copy_images_by_type(
         return 0
 
     prefix = f"copy{context.copy_id}_"
-    return await asyncio.to_thread(
+    removed = await asyncio.to_thread(
         _delete_images_by_type_sync,
         full_dir,
         prefix,
@@ -146,6 +146,14 @@ async def delete_copy_images_by_type(
         image_type,
         exclude or set(),
     )
+    if removed:
+        await asyncio.to_thread(
+            _cleanup_issue_directory,
+            root,
+            series_dir,
+            issue_dir,
+        )
+    return removed
 
 
 async def delete_copy_image_by_name(
@@ -170,6 +178,12 @@ async def delete_copy_image_by_name(
         return False
 
     await asyncio.to_thread(destination.unlink)
+    await asyncio.to_thread(
+        _cleanup_issue_directory,
+        root,
+        series_dir,
+        issue_dir,
+    )
     return True
 
 
@@ -252,6 +266,32 @@ def _delete_images_by_type_sync(
             continue
         removed += 1
     return removed
+
+
+def _cleanup_issue_directory(
+    root: Path,
+    series_dir: Path,
+    issue_dir: Path,
+) -> None:
+    issue_path = root / series_dir / issue_dir
+    _remove_directory_if_empty(issue_path)
+    series_path = root / series_dir
+    _remove_directory_if_empty(series_path)
+
+
+def _remove_directory_if_empty(path: Path) -> bool:
+    if not path.exists() or not path.is_dir():
+        return False
+    iterator = path.iterdir()
+    try:
+        next(iterator)
+        return False
+    except StopIteration:
+        try:
+            path.rmdir()
+            return True
+        except OSError:
+            return False
 
 
 def _is_safe_filename(name: str) -> bool:

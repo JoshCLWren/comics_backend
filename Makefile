@@ -110,7 +110,10 @@ setup: install-uv init deps migrate import-data
 run:
 	@$(call log_header,Run development server)
 	@$(call log_step,Launching uvicorn for $(APP_MODULE))
-	uv run uvicorn $(APP_MODULE) --reload
+	uv run uvicorn $(APP_MODULE) --reload --host 0.0.0.0 \
+		--reload-exclude "collection_images" \
+		--reload-exclude "collection_images/*" \
+		--reload-exclude "collection_images/**"
 
 # ------------------------------------
 # database helpers

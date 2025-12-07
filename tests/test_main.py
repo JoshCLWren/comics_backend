@@ -94,6 +94,12 @@ def _seed_data(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         """
+        INSERT INTO series (series_id, title, publisher, series_group, age)
+        VALUES (17561, 'The Authority: Prime', 'DC Comics', 'The Authority', 'Modern')
+        """
+    )
+    conn.execute(
+        """
         INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year, story_arc)
         VALUES (1, 1, '1', '', 'Arrival', 2020, 'Launch')
         """
@@ -102,6 +108,24 @@ def _seed_data(conn: sqlite3.Connection) -> None:
         """
         INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, story_arc)
         VALUES (2, 1, '2', 'A', 'Second', 'Flashback')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year, story_arc)
+        VALUES (100, 17561, '3', '', 'Part 3', 2008, 'Breach of Trust')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year, story_arc)
+        VALUES (101, 17561, '5', '', 'Part 5', 2008, 'Breach of Trust')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO issues (issue_id, series_id, issue_nr, variant, title, cover_year, story_arc)
+        VALUES (102, 17561, '6', '', 'Part 6', 2008, 'Breach of Trust')
         """
     )
     conn.execute(
@@ -297,9 +321,7 @@ def test_delete_copy_image(api_client: TestClient, image_root):
     saved_path = image_root / job["result"]["relative_path"]
     assert saved_path.exists()
 
-    resp = api_client.delete(
-        f"/v1/series/1/issues/1/copies/1/images/{file_name}"
-    )
+    resp = api_client.delete(f"/v1/series/1/issues/1/copies/1/images/{file_name}")
     assert resp.status_code == 204
     assert not saved_path.exists()
 
@@ -307,9 +329,7 @@ def test_delete_copy_image(api_client: TestClient, image_root):
     assert resp.status_code == 200
     assert resp.json()["images"] == []
 
-    resp = api_client.delete(
-        f"/v1/series/1/issues/1/copies/1/images/{file_name}"
-    )
+    resp = api_client.delete(f"/v1/series/1/issues/1/copies/1/images/{file_name}")
     assert resp.status_code == 404
 
 
@@ -437,6 +457,41 @@ def test_series_title_search_handles_partial_tokens(api_client: TestClient):
     series_titles = [item["title"] for item in resp.json()["series"]]
     assert series_titles[0] == "X-Treme X-Men, Vol. 1"
     assert all("Farce" not in title for title in series_titles)
+
+
+def test_issue_search_returns_authority_prime(api_client: TestClient):
+    """Global issue search returns issues for matching series titles."""
+    resp = api_client.get("/v1/issues", params={"title_search": "authority"})
+    assert resp.status_code == 200
+    body = resp.json()
+    issue_nrs = [item["issue_nr"] for item in body["issues"]]
+    assert issue_nrs == ["3", "5", "6"]
+    assert all(item["series_id"] == 17561 for item in body["issues"])
+    assert body["next_page_token"] is None
+
+
+def test_issue_search_paginates_results(api_client: TestClient):
+    """Issue search honors pagination semantics across the flattened set."""
+    first = api_client.get(
+        "/v1/issues", params={"title_search": "authority", "page_size": 2}
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    assert [item["issue_nr"] for item in first_body["issues"]] == ["3", "5"]
+    assert first_body["next_page_token"] == "2"
+
+    second = api_client.get(
+        "/v1/issues",
+        params={
+            "title_search": "authority",
+            "page_size": 2,
+            "page_token": first_body["next_page_token"],
+        },
+    )
+    assert second.status_code == 200
+    second_body = second.json()
+    assert [item["issue_nr"] for item in second_body["issues"]] == ["6"]
+    assert second_body["next_page_token"] is None
 
 
 def test_series_update_and_delete_flow(api_client: TestClient):

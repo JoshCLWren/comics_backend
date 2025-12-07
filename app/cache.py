@@ -67,13 +67,34 @@ class _RedisClientManager:
         await self._close_locked()
 
     async def _close_locked(self) -> None:
-        if self._client is None:
+        client = self._client
+        loop = self._loop
+        if client is None:
             return
+        self._client = None
+        self._loop = None
         try:
-            await self._client.aclose()
-        finally:
-            self._client = None
-            self._loop = None
+            if (
+                loop is not None
+                and loop is not asyncio.get_running_loop()
+                and loop.is_running()
+                and not loop.is_closed()
+            ):
+                # Ensure the close coroutine runs on the loop that created the client.
+                future = asyncio.run_coroutine_threadsafe(client.aclose(), loop)
+                try:
+                    await asyncio.wrap_future(future)
+                except asyncio.CancelledError:  # pragma: no cover - defensive
+                    future.cancel()
+                    logger.warning(
+                        "redis close cancelled on shutting-down loop; ignoring"
+                    )
+            else:
+                await client.aclose()
+        except asyncio.CancelledError:  # pragma: no cover - defensive
+            logger.warning("redis close cancelled; assuming loop shutdown")
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("failed to close redis client cleanly: %s", exc)
 
 
 async def get_redis_client() -> Redis:
@@ -204,11 +225,13 @@ class RedisResponseCacheMiddleware(BaseHTTPMiddleware):
         redis_factory: Callable[[], Awaitable[Redis]] = get_redis_client,
         cache_ttl_seconds: int | None = None,
     ) -> None:
+        """Init Cache"""
         super().__init__(app)
         self._redis_factory = redis_factory
         self._cache_ttl = cache_ttl_seconds or _cache_ttl()
 
     async def dispatch(self, request: Request, call_next):
+        """return dispatched cache wtf?"""
         try:
             redis = await self._redis_factory()
         except Exception as exc:  # pragma: no cover - defensive
@@ -341,9 +364,31 @@ async def _invalidate_tag(redis: Redis, tag: str) -> None:
     logger.info("invalidated tag %s (%s keys)", tag, len(members))
 
 
-async def _invalidate_tag_set(redis: Redis, tags: Iterable[str]) -> None:
+async def _invalidate_tag_set(
+    redis: Redis, tags: Iterable[str], *, retries: int = 2
+) -> None:
     for tag in tags:
-        await _invalidate_tag(redis, tag)
+        attempt = 0
+        while True:
+            try:
+                await _invalidate_tag(redis, tag)
+                break
+            except asyncio.CancelledError:  # pragma: no cover - defensive
+                logger.warning("tag invalidation cancelled for %s", tag)
+                return
+            except Exception as exc:  # pragma: no cover - transient redis issues
+                if attempt >= retries:
+                    logger.warning("failed to invalidate tag %s: %s", tag, exc)
+                    break
+                backoff = min(0.05 * (attempt + 1), 0.25)
+                logger.debug(
+                    "retrying invalidation for %s after %ss: %s",
+                    tag,
+                    backoff,
+                    exc,
+                )
+                await asyncio.sleep(backoff)
+                attempt += 1
 
 
 __all__ = [

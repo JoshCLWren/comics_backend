@@ -11,9 +11,43 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app import schemas
 from app.db import get_connection
 
-from . import helpers
+from . import helpers, search_utils
 
 router = APIRouter()
+
+
+@router.get(
+    "/issues",
+    response_model=schemas.ListIssuesResponse,
+)
+async def search_issues(
+    *,
+    conn: aiosqlite.Connection = Depends(get_connection),
+    title_search: str = Query(
+        ...,
+        min_length=1,
+        description="Filter issues by matching their parent series title",
+    ),
+    page_size: int = Query(default=25, ge=1, le=helpers.MAX_PAGE_SIZE),
+    page_token: str | None = None,
+) -> schemas.ListIssuesResponse:
+    """Return issues whose series titles match the provided search string."""
+    query = title_search.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="title_search must not be empty")
+
+    offset = helpers.parse_page_token(page_token)
+    rows = await _collect_matching_issue_rows(
+        conn,
+        query=query,
+        offset=offset,
+        limit=page_size + 1,
+    )
+    payload = [helpers.row_to_model(schemas.Issue, row) for row in rows[:page_size]]
+    return schemas.ListIssuesResponse(
+        issues=payload,
+        next_page_token=helpers.next_page_token(offset, page_size, len(rows)),
+    )
 
 
 @router.get(
@@ -164,3 +198,57 @@ async def delete_issue(
     finally:
         await cursor.close()
     await conn.commit()
+
+
+async def _collect_matching_issue_rows(
+    conn: aiosqlite.Connection, *, query: str, offset: int, limit: int
+) -> list[sqlite3.Row]:
+    """Gather matching issue rows across series ordered by series relevance."""
+    ranked_series = await _rank_matching_series(conn, query)
+    rows: list[sqlite3.Row] = []
+    skipped = 0
+    for series_row in ranked_series:
+        async with conn.execute(
+            """
+            SELECT issue_id, series_id, issue_nr, variant, title, subtitle,
+                   full_title, cover_date, cover_year, story_arc
+            FROM issues
+            WHERE series_id = ?
+            ORDER BY issue_nr, variant, issue_id
+            """,
+            (series_row["series_id"],),
+        ) as cursor:
+            series_issues = await cursor.fetchall()
+        for issue_row in series_issues:
+            if skipped < offset:
+                skipped += 1
+                continue
+            rows.append(issue_row)
+            if len(rows) >= limit:
+                return rows
+    return rows
+
+
+async def _rank_matching_series(
+    conn: aiosqlite.Connection, query: str
+) -> list[sqlite3.Row]:
+    """Return series rows ordered by fuzzy relevance to the provided query."""
+    async with conn.execute(
+        """
+        SELECT series_id, title
+        FROM series
+        """
+    ) as cursor:
+        rows = await cursor.fetchall()
+    filtered = [
+        row for row in rows if search_utils.matches_search(row["title"] or "", query)
+    ]
+    ranked = sorted(
+        filtered,
+        key=lambda row: (
+            -search_utils.fuzzy_score(row["title"] or "", query),
+            (row["title"] or "").lower(),
+            row["series_id"],
+        ),
+    )
+    return ranked
