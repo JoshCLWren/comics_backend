@@ -58,6 +58,7 @@ async def list_copies(
     page_size: int = Query(default=25, ge=1, le=helpers.MAX_PAGE_SIZE),
     page_token: str | None = None,
 ) -> schemas.ListCopiesResponse:
+    """List copies for the provided issue with basic pagination."""
     await helpers.ensure_issue_exists(conn, issue_id)
     offset = helpers.parse_page_token(page_token)
     async with conn.execute(
@@ -94,6 +95,7 @@ async def create_copy(
     request: schemas.CreateCopyRequest,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Copy:
+    """Insert a new copy row for the given issue."""
     await helpers.ensure_issue_exists(conn, issue_id)
     data = request.model_dump()
     columns = ", ".join(COPY_COLUMNS)
@@ -129,6 +131,7 @@ async def get_copy(
     copy_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Copy:
+    """Return a single copy for the issue or raise 404."""
     row = await helpers.fetch_copy(conn, issue_id, copy_id)
     return helpers.row_to_model(schemas.Copy, row)
 
@@ -143,6 +146,7 @@ async def update_copy(
     request: schemas.UpdateCopyRequest,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Copy:
+    """Apply partial updates to a copy and return the refreshed record."""
     updates = request.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="no fields to update")
@@ -171,6 +175,7 @@ async def delete_copy(
     copy_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> None:
+    """Remove a copy from the database."""
     cursor = await conn.execute(
         "DELETE FROM copies WHERE id = ? AND issue_id = ?",
         (copy_id, issue_id),

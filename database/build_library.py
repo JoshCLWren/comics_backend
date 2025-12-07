@@ -1,3 +1,5 @@
+"""Utilities for building the SQLite library from the CLZ export."""
+
 import logging
 import sqlite3
 from pathlib import Path
@@ -151,6 +153,7 @@ def apply_migrations(db_path: Path) -> None:
 
 
 def load_csv() -> pd.DataFrame:
+    """Load and normalize the CLZ CSV export."""
     logger.info("Loading CSV from %s", CSV_PATH)
     df = pd.read_csv(CSV_PATH)
     logger.info("Loaded %d records from CSV", len(df))
@@ -165,6 +168,7 @@ def load_csv() -> pd.DataFrame:
 
 
 def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
+    """Insert unique series rows extracted from the CSV."""
     cur = conn.cursor()
     total_rows = len(df)
     unique_series = df["Core SeriesID"].nunique(dropna=True)
@@ -235,10 +239,7 @@ def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
 
 
 def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
-    """
-    Create issues and return a mapping:
-        (series_id, issue_nr, variant) -> issue_id
-    """
+    """Insert issues and return a lookup keyed by (series_id, issue_nr, variant)."""
     cur = conn.cursor()
 
     issue_key_cols = ["Core SeriesID", "IssueNrNorm", "VariantNorm"]
@@ -344,6 +345,7 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
 def populate_copies(
     conn: sqlite3.Connection, df: pd.DataFrame, issue_map: dict
 ) -> None:
+    """Insert copy rows while referencing the issue map."""
     cur = conn.cursor()
     inserted = 0
     skipped = 0
@@ -500,6 +502,7 @@ def populate_copies(
 
 
 def main() -> None:
+    """Command-line entry point to rebuild the SQLite database."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s:%(name)s:%(message)s",

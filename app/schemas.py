@@ -24,6 +24,8 @@ class PagingResponse(APIModel):
 
 
 class SeriesBase(APIModel):
+    """Shared optional fields for working with a series."""
+
     title: str | None = Field(default=None, description="Series display title")
     publisher: str | None = Field(default=None, description="Publisher name")
     series_group: str | None = Field(default=None, description="Grouping label")
@@ -31,26 +33,37 @@ class SeriesBase(APIModel):
 
 
 class Series(SeriesBase):
+    """Representation of a stored series."""
+
     series_id: int = Field(description="Primary key for a series")
 
 
 class CreateSeriesRequest(SeriesBase):
+    """Payload accepted when creating a series."""
+
     series_id: int = Field(description="User supplied unique identifier")
 
 
 class UpdateSeriesRequest(SeriesBase):
+    """Partial update model for series attributes."""
+
     @model_validator(mode="after")
     def ensure_payload(self) -> "UpdateSeriesRequest":
+        """Prevent empty payloads since PATCH must toggle something."""
         if not any(value is not None for value in self.model_dump().values()):
             raise ValueError("At least one field must be provided")
         return self
 
 
 class ListSeriesResponse(PagingResponse):
+    """Paginated response for the list series endpoint."""
+
     series: list[Series]
 
 
 class IssueBase(APIModel):
+    """Base model shared by issue create and response schemas."""
+
     issue_nr: str = Field(description="CLZ normalized issue number")
     variant: str | None = Field(default="", description="Variant designation")
     title: str | None = None
@@ -62,15 +75,19 @@ class IssueBase(APIModel):
 
 
 class Issue(IssueBase):
+    """Representation of an issue tied to a series."""
+
     issue_id: int = Field(description="Primary key for an issue")
     series_id: int
 
 
 class CreateIssueRequest(IssueBase):
-    pass
+    """Payload accepted when creating an issue."""
 
 
 class UpdateIssueRequest(APIModel):
+    """Partial update schema for issues."""
+
     issue_nr: str | None = None
     variant: str | None = None
     title: str | None = None
@@ -82,16 +99,21 @@ class UpdateIssueRequest(APIModel):
 
     @model_validator(mode="after")
     def ensure_payload(self) -> "UpdateIssueRequest":
+        """Reject empty updates to keep validation consistent."""
         if not any(value is not None for value in self.model_dump().values()):
             raise ValueError("At least one field must be provided")
         return self
 
 
 class ListIssuesResponse(PagingResponse):
+    """Paginated response for issue listings."""
+
     issues: list[Issue]
 
 
 class CopyBase(APIModel):
+    """Base attributes shared across copy schemas."""
+
     clz_comic_id: int | None = None
     custom_label: str | None = None
     format: str | None = None
@@ -126,27 +148,36 @@ class CopyBase(APIModel):
 
 
 class Copy(CopyBase):
+    """Representation of a stored copy for an issue."""
+
     copy_id: int = Field(description="Primary key for a copy")
     issue_id: int
 
 
 class CreateCopyRequest(CopyBase):
-    pass
+    """Payload accepted when creating a copy."""
 
 
 class UpdateCopyRequest(CopyBase):
+    """Partial update schema for copies."""
+
     @model_validator(mode="after")
     def ensure_payload(self) -> "UpdateCopyRequest":
+        """Reject empty updates to keep validation consistent."""
         if not any(value is not None for value in self.model_dump().values()):
             raise ValueError("At least one field must be provided")
         return self
 
 
 class ListCopiesResponse(PagingResponse):
+    """Paginated response used when listing copies."""
+
     copies: list[Copy]
 
 
 class ImageType(str, Enum):
+    """Enumeration of supported comic image types."""
+
     FRONT = "front"
     BACK = "back"
     SPINE = "spine"
@@ -157,6 +188,8 @@ class ImageType(str, Enum):
 
 
 class ComicImage(APIModel):
+    """Metadata describing a saved image."""
+
     series_id: int
     issue_id: int
     copy_id: int
@@ -166,10 +199,14 @@ class ComicImage(APIModel):
 
 
 class ListCopyImagesResponse(APIModel):
+    """Response containing all image metadata for a copy."""
+
     images: list[ComicImage]
 
 
 class JobStatus(str, Enum):
+    """Possible states for an image upload job."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -177,6 +214,8 @@ class JobStatus(str, Enum):
 
 
 class ImageUploadJob(APIModel):
+    """Representation of an asynchronous image upload job."""
+
     job_id: str
     series_id: int
     issue_id: int

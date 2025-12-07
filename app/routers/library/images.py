@@ -61,6 +61,7 @@ async def upload_copy_image(
     file: UploadFile = File(...),
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.ImageUploadJob:
+    """Accept an upload, enqueue the async processor, and return the job."""
     original_filename = file.filename
     payload = await file.read()
     await file.close()
@@ -101,6 +102,7 @@ async def list_copy_images(
     copy_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.ListCopyImagesResponse:
+    """List any stored images for a copy."""
     context = await _build_context(
         conn,
         series_id=series_id,

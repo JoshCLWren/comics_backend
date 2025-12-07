@@ -1,3 +1,5 @@
+"""Tests for the CSV-to-SQLite ETL helpers."""
+
 import sqlite3
 import sys
 from pathlib import Path
@@ -12,6 +14,7 @@ from database import build_library as bl
 
 
 def test_normalize_issue_nr_various_inputs():
+    """normalize_issue_nr handles floats, NaN, and arbitrary objects."""
     assert bl.normalize_issue_nr(1.0) == "1"
     assert bl.normalize_issue_nr(0.5) == "0.5"
     assert bl.normalize_issue_nr(float("nan")) == ""
@@ -28,11 +31,13 @@ def test_normalize_issue_nr_various_inputs():
 
 
 def test_normalize_text_handles_nan():
+    """normalize_text coerces NaN to an empty string."""
     assert bl.normalize_text(float("nan")) == ""
     assert bl.normalize_text("value") == "value"
 
 
 def test_describe_row_handles_multiple_branches():
+    """describe_row combines the available identifier fields."""
     primary_row = pd.Series(
         {
             "Series": "Amazing Tales",
@@ -62,6 +67,7 @@ def test_describe_row_handles_multiple_branches():
 
 
 def test_log_row_skip_logs_reason(caplog):
+    """log_row_skip emits readable messages."""
     row = pd.Series({"Series": "Test"})
     with caplog.at_level("WARNING"):
         bl.log_row_skip("stage", row, "missing data")
@@ -75,12 +81,14 @@ def test_log_row_skip_logs_reason(caplog):
 
 
 def test_apply_migrations_requires_config(monkeypatch, tmp_path):
+    """apply_migrations raises when the Alembic ini file is missing."""
     monkeypatch.setattr(bl, "ALEMBIC_INI_PATH", tmp_path / "missing.ini")
     with pytest.raises(FileNotFoundError):
         bl.apply_migrations(tmp_path / "db.sqlite")
 
 
 def test_apply_migrations_invokes_alembic(monkeypatch, tmp_path):
+    """apply_migrations wires up the alembic upgrade call."""
     cfg_path = tmp_path / "alembic.ini"
     cfg_path.write_text("[alembic]\n")
     monkeypatch.setattr(bl, "ALEMBIC_INI_PATH", cfg_path)
@@ -99,6 +107,7 @@ def test_apply_migrations_invokes_alembic(monkeypatch, tmp_path):
 
 
 def test_load_csv_normalizes_issue_and_variant(monkeypatch, tmp_path):
+    """load_csv adds normalized columns for downstream processing."""
     csv_path = tmp_path / "export.csv"
     csv_path.write_text("Issue Nr,Variant\n1,\n0.5,Special\n")
     monkeypatch.setattr(bl, "CSV_PATH", csv_path)
@@ -109,6 +118,7 @@ def test_load_csv_normalizes_issue_and_variant(monkeypatch, tmp_path):
 
 
 def test_populate_series_inserts_and_skips(caplog):
+    """populate_series inserts valid rows and logs the rest."""
     conn = sqlite3.connect(":memory:")
     conn.execute(
         """
@@ -150,6 +160,7 @@ def test_populate_series_inserts_and_skips(caplog):
 
 
 def test_populate_series_handles_integrity_error(monkeypatch):
+    """populate_series swallows sqlite constraint errors."""
     class DummyCursor:
         def execute(self, *_args, **_kwargs):
             raise sqlite3.IntegrityError("boom")
@@ -228,6 +239,7 @@ def _create_copies_table(conn: sqlite3.Connection) -> None:
 
 
 def test_populate_issues_builds_issue_map(caplog):
+    """populate_issues inserts normalized issues and logs skips."""
     conn = sqlite3.connect(":memory:")
     _create_issues_table(conn)
 
@@ -276,6 +288,7 @@ def test_populate_issues_builds_issue_map(caplog):
 
 
 def test_populate_issues_handles_integrity_error():
+    """populate_issues swallows sqlite constraint errors."""
     class DummyCursor:
         lastrowid = 0
 
@@ -372,6 +385,7 @@ def _copies_rows():
 
 
 def test_populate_copies_inserts_rows(caplog):
+    """populate_copies inserts rows and logs problematic data."""
     conn = sqlite3.connect(":memory:")
     _create_copies_table(conn)
 
@@ -400,6 +414,7 @@ def test_populate_copies_inserts_rows(caplog):
 
 
 def test_populate_copies_handles_integrity_error():
+    """populate_copies continues after sqlite constraint errors."""
     class DummyCursor:
         def execute(self, *_args, **_kwargs):
             raise sqlite3.IntegrityError("copies")
@@ -426,6 +441,7 @@ def test_populate_copies_handles_integrity_error():
 
 
 def test_main_happy_path(monkeypatch, tmp_path):
+    """main rebuilds the DB and cleans up old artifacts."""
     csv_path = tmp_path / "export.csv"
     csv_path.write_text("Issue Nr,Variant\n1,\n")
     db_path = tmp_path / "library.db"
@@ -478,12 +494,14 @@ def test_main_happy_path(monkeypatch, tmp_path):
 
 
 def test_main_requires_existing_csv(monkeypatch, tmp_path):
+    """main fails fast when the CSV input is missing."""
     monkeypatch.setattr(bl, "CSV_PATH", tmp_path / "missing.csv")
     with pytest.raises(FileNotFoundError):
         bl.main()
 
 
 def test_module_guard_executes_main(monkeypatch):
+    """The CLI guard executes the builder when invoked directly."""
     read_calls = []
 
     def fake_read_csv(_path):

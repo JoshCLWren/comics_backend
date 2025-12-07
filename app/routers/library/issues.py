@@ -29,6 +29,7 @@ async def list_issues(
         default=None, description="Filter by story arc exact match"
     ),
 ) -> schemas.ListIssuesResponse:
+    """List issues for a series with optional story arc filtering."""
     await helpers.ensure_series(conn, series_id)
     offset = helpers.parse_page_token(page_token)
     clauses = ["series_id = ?"]
@@ -65,6 +66,7 @@ async def create_issue(
     request: schemas.CreateIssueRequest,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Issue:
+    """Persist a new issue under the target series."""
     await helpers.ensure_series(conn, series_id)
     data = request.model_dump()
     data["variant"] = data.get("variant") or ""
@@ -105,6 +107,7 @@ async def get_issue(
     issue_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Issue:
+    """Retrieve a single issue by id."""
     row = await helpers.fetch_issue(conn, series_id, issue_id)
     return helpers.row_to_model(schemas.Issue, row)
 
@@ -119,6 +122,7 @@ async def update_issue(
     request: schemas.UpdateIssueRequest,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Issue:
+    """Apply partial updates to an issue."""
     updates = request.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="no fields to update")
@@ -149,6 +153,7 @@ async def delete_issue(
     issue_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> None:
+    """Delete an issue from a series."""
     cursor = await conn.execute(
         "DELETE FROM issues WHERE issue_id = ? AND series_id = ?",
         (issue_id, series_id),

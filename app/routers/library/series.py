@@ -27,6 +27,7 @@ async def list_series(
         default=None, description="Substring filter for series title"
     ),
 ) -> schemas.ListSeriesResponse:
+    """Return paginated series optionally filtered by publisher or title."""
     print("handler /series: start", flush=True)
     print(
         f"handler /series: page_size={page_size}, page_token={page_token}, publisher={publisher}, title_search={title_search}",
@@ -91,6 +92,7 @@ async def create_series(
     conn: aiosqlite.Connection = Depends(get_connection),
     request: schemas.CreateSeriesRequest,
 ) -> schemas.Series:
+    """Create a new series row."""
     data = request.model_dump()
     try:
         await conn.execute(
@@ -115,6 +117,7 @@ async def get_series(
     series_id: int,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Series:
+    """Fetch a single series by identifier."""
     async with conn.execute(
         """
         SELECT series_id, title, publisher, series_group, age
@@ -134,6 +137,7 @@ async def update_series(
     request: schemas.UpdateSeriesRequest,
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.Series:
+    """Apply partial updates to a series."""
     updates = request.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="no fields to update")
@@ -157,6 +161,7 @@ async def update_series(
 async def delete_series(
     series_id: int, conn: aiosqlite.Connection = Depends(get_connection)
 ) -> None:
+    """Remove a series from the catalog."""
     cursor = await conn.execute("DELETE FROM series WHERE series_id = ?", (series_id,))
     try:
         if cursor.rowcount == 0:

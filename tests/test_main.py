@@ -1,3 +1,5 @@
+"""API-level tests for the FastAPI service."""
+
 import sqlite3
 import sys
 import time
@@ -129,6 +131,7 @@ def db_path(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def image_root(tmp_path, monkeypatch):
+    """Temporary directory for storing uploaded images during tests."""
     root = tmp_path / "images"
     root.mkdir()
     monkeypatch.setenv("COMICS_IMAGE_ROOT", str(root))
@@ -166,6 +169,7 @@ def _wait_for_job_completion(api_client: TestClient, job_id: str, timeout: float
 
 
 def test_list_series_paginates(api_client: TestClient):
+    """The series endpoint returns deterministic pagination tokens."""
     print("\nTEST: start test_list_series_paginates", file=sys.stderr, flush=True)
 
     print("TEST: before first GET /v1/series", file=sys.stderr, flush=True)
@@ -211,6 +215,7 @@ def test_list_series_paginates(api_client: TestClient):
 
 
 def test_create_issue_and_fetch(api_client: TestClient):
+    """Creating an issue makes it available via GET."""
     payload = {
         "issue_nr": "3",
         "variant": "",
@@ -229,6 +234,7 @@ def test_create_issue_and_fetch(api_client: TestClient):
 
 
 def test_upload_and_list_copy_images(api_client: TestClient, image_root):
+    """Image uploads enqueue jobs and later list results."""
     resp = api_client.post(
         "/v1/series/1/issues/1/copies/1/images",
         data={"image_type": "front"},
@@ -251,12 +257,14 @@ def test_upload_and_list_copy_images(api_client: TestClient, image_root):
 
 
 def test_job_lookup_not_found(api_client: TestClient):
+    """GET /jobs returns 404 for unknown identifiers."""
     resp = api_client.get("/v1/jobs/does-not-exist")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "job not found"
 
 
 def test_update_copy_flow(api_client: TestClient):
+    """Copy PATCH applies updates and validates errors."""
     resp = api_client.patch(
         "/v1/issues/1/copies/1",
         json={"grade": "9.6", "key_flag": "Yes"},
@@ -272,12 +280,14 @@ def test_update_copy_flow(api_client: TestClient):
 
 
 def test_missing_series_returns_404(api_client: TestClient):
+    """Fetching a missing series returns a 404."""
     resp = api_client.get("/v1/series/999")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "series not found"
 
 
 def test_root_returns_message(api_client: TestClient):
+    """Root endpoint responds with a friendly payload."""
     resp = api_client.get("/")
     assert resp.status_code == 200
     payload = resp.json()
@@ -286,6 +296,7 @@ def test_root_returns_message(api_client: TestClient):
 
 
 def test_series_filters_and_conflict(api_client: TestClient):
+    """Series endpoint supports filters and conflict handling."""
     resp = api_client.get(
         "/v1/series", params={"publisher": "ACME", "title_search": "Al"}
     )
@@ -312,6 +323,7 @@ def test_series_filters_and_conflict(api_client: TestClient):
 
 
 def test_series_update_and_delete_flow(api_client: TestClient):
+    """Series records support PATCH and DELETE operations."""
     resp = api_client.patch(
         "/v1/series/2", json={"title": "Beta Prime", "age": "Bronze"}
     )
@@ -332,12 +344,14 @@ def test_series_update_and_delete_flow(api_client: TestClient):
 
 
 def test_series_invalid_page_token(api_client: TestClient):
+    """Invalid pagination tokens yield 400 responses."""
     resp = api_client.get("/v1/series", params={"page_token": "-5"})
     assert resp.status_code == 400
     assert resp.json()["detail"] == "invalid page_token"
 
 
 def test_list_issues_filters_and_missing_series(api_client: TestClient):
+    """Issues endpoint filters by story arc and handles 404s."""
     resp = api_client.get("/v1/series/1/issues", params={"story_arc": "Launch"})
     assert resp.status_code == 200
     issues = resp.json()["issues"]
@@ -350,6 +364,7 @@ def test_list_issues_filters_and_missing_series(api_client: TestClient):
 
 
 def test_issue_conflict_and_variant_normalization(api_client: TestClient):
+    """Create issue enforces uniqueness and normalizes variants."""
     payload = {
         "issue_nr": "10",
         "variant": None,
@@ -367,6 +382,7 @@ def test_issue_conflict_and_variant_normalization(api_client: TestClient):
 
 
 def test_update_issue_and_delete(api_client: TestClient):
+    """Issue updates persist and delete removes the record."""
     resp = api_client.patch(
         "/v1/series/1/issues/1", json={"title": "Arrival+", "variant": None}
     )
@@ -391,6 +407,7 @@ def test_update_issue_and_delete(api_client: TestClient):
 
 
 def test_copy_crud_and_missing_resources(api_client: TestClient):
+    """Copy endpoints support CRUD semantics and 404 handling."""
     resp = api_client.get("/v1/issues/1/copies/999")
     assert resp.status_code == 404
 
@@ -421,6 +438,7 @@ def test_copy_crud_and_missing_resources(api_client: TestClient):
 
 
 def test_resolve_db_path_errors_when_missing(tmp_path, monkeypatch):
+    """resolve_db_path raises a helpful error when the DB is missing."""
     missing = tmp_path / "nope.db"
     monkeypatch.setenv(db.DB_PATH_ENV_VAR, str(missing))
     with pytest.raises(HTTPException) as exc:

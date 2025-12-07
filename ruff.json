@@ -1,0 +1,1634 @@
+[
+  {
+    "cell": null,
+    "code": "D100",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/home/josh/code/comics_backend/alembic/env.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Missing docstring in public module",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-module"
+  },
+  {
+    "cell": null,
+    "code": "D107",
+    "end_location": {
+      "column": 17,
+      "row": 28
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 28
+    },
+    "message": "Missing docstring in `__init__`",
+    "noqa_row": 28,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-init"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 19,
+      "row": 32
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 32
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 32,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 25,
+      "row": 51
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 51
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 51,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 23,
+      "row": 57
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 57
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 57,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 20,
+      "row": 64
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 64
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 64,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 16,
+      "row": 70
+    },
+    "filename": "/home/josh/code/comics_backend/app/jobs.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 70
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 70,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 55
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/copies.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 55
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 55,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 92
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/copies.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 92
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 92,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 19,
+      "row": 127
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/copies.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 127
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 127,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 140
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/copies.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 140
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 140,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 169
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/copies.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 169
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 169,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 21,
+      "row": 18
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 18
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 18,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 20,
+      "row": 30
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 30
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 30,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 17,
+      "row": 36
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 36
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 36,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 24,
+      "row": 43
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 43
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 43,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 23,
+      "row": 55
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 55
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 55,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 73
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 73
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 73,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 21,
+      "row": 94
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 94
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 94,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 30,
+      "row": 120
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/helpers.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 120
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 120,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 28,
+      "row": 55
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/images.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 55
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 55,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 27,
+      "row": 98
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/images.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 98
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 98,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 23
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/issues.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 23
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 23,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 23,
+      "row": 63
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/issues.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 63
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 63,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 20,
+      "row": 103
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/issues.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 103
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 103,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 23,
+      "row": 116
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/issues.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 116
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 116,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 23,
+      "row": 147
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/issues.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 147
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 147,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 22,
+      "row": 20
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/series.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 20
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 20,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 24,
+      "row": 89
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/series.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 89
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 89,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 21,
+      "row": 114
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/series.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 114
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 114,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 24,
+      "row": 132
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/series.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 132
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 132,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 24,
+      "row": 157
+    },
+    "filename": "/home/josh/code/comics_backend/app/routers/library/series.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 157
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 157,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 17,
+      "row": 26
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 26
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 26,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 13,
+      "row": 33
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 33
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 33,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 26,
+      "row": 37
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 37
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 37,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 26,
+      "row": 41
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 41
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 41,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 23,
+      "row": 43
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 43
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 43,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 25,
+      "row": 49
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 49
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 49,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 16,
+      "row": 53
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 53
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 53,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 12,
+      "row": 64
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 64
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 64,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 25,
+      "row": 69
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 69
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 69,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 25,
+      "row": 73
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 73
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 73,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 23,
+      "row": 84
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 84
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 84,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 25,
+      "row": 90
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 90
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 90,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 15,
+      "row": 94
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 94
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 94,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 11,
+      "row": 128
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 128
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 128,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 24,
+      "row": 133
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 133
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 133,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 24,
+      "row": 137
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 137
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 137,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D102",
+    "end_location": {
+      "column": 23,
+      "row": 139
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 139
+    },
+    "message": "Missing docstring in public method",
+    "noqa_row": 139,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-method"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 25,
+      "row": 145
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 145
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 145,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 16,
+      "row": 149
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 149
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 149,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 17,
+      "row": 159
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 159
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 159,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 29,
+      "row": 168
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 168
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 168,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 16,
+      "row": 172
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 172
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 172,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D101",
+    "end_location": {
+      "column": 21,
+      "row": 179
+    },
+    "filename": "/home/josh/code/comics_backend/app/schemas.py",
+    "fix": null,
+    "location": {
+      "column": 7,
+      "row": 179
+    },
+    "message": "Missing docstring in public class",
+    "noqa_row": 179,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-class"
+  },
+  {
+    "cell": null,
+    "code": "D100",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/home/josh/code/comics_backend/database/build_library.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Missing docstring in public module",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-module"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 13,
+      "row": 153
+    },
+    "filename": "/home/josh/code/comics_backend/database/build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 153
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 153,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 20,
+      "row": 167
+    },
+    "filename": "/home/josh/code/comics_backend/database/build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 167
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 167,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 20,
+      "row": 344
+    },
+    "filename": "/home/josh/code/comics_backend/database/build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 344
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 344,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 9,
+      "row": 502
+    },
+    "filename": "/home/josh/code/comics_backend/database/build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 502
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 502,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D100",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/home/josh/code/comics_backend/main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Missing docstring in public module",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-module"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 14,
+      "row": 11
+    },
+    "filename": "/home/josh/code/comics_backend/main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 11
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 11,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D100",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Missing docstring in public module",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-module"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 43,
+      "row": 14
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 14
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 14,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 36,
+      "row": 30
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 30
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 30,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 48,
+      "row": 35
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 35
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 35,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 34,
+      "row": 64
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 64
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 64,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 42,
+      "row": 77
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 77
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 77,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 42,
+      "row": 83
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 83
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 83,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 47,
+      "row": 101
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 101
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 101,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 43,
+      "row": 111
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 111
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 111,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 49,
+      "row": 152
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 152
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 152,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 42,
+      "row": 230
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 230
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 230,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 49,
+      "row": 278
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 278
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 278,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 38,
+      "row": 374
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 374
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 374,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 49,
+      "row": 402
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 402
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 402,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 25,
+      "row": 428
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 428
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 428,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 36,
+      "row": 480
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 480
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 480,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 36,
+      "row": 486
+    },
+    "filename": "/home/josh/code/comics_backend/tests/db/test_build_library.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 486
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 486,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D100",
+    "end_location": {
+      "column": 1,
+      "row": 1
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Missing docstring in public module",
+    "noqa_row": 1,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-module"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 15,
+      "row": 131
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 131
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 131,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 31,
+      "row": 168
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 168
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 168,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 32,
+      "row": 213
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 213
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 213,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 37,
+      "row": 231
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 231
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 231,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 30,
+      "row": 253
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 253
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 253,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 26,
+      "row": 259
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 259
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 259,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 36,
+      "row": 274
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 274
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 274,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 30,
+      "row": 280
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 280
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 280,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 37,
+      "row": 288
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 288
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 288,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 39,
+      "row": 314
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 314
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 314,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 35,
+      "row": 334
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 334
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 334,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 48,
+      "row": 340
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 340
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 340,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 50,
+      "row": 352
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 352
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 352,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 33,
+      "row": 369
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 369
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 369,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 41,
+      "row": 393
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 393
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 393,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  },
+  {
+    "cell": null,
+    "code": "D103",
+    "end_location": {
+      "column": 45,
+      "row": 423
+    },
+    "filename": "/home/josh/code/comics_backend/tests/test_main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 423
+    },
+    "message": "Missing docstring in public function",
+    "noqa_row": 423,
+    "url": "https://docs.astral.sh/ruff/rules/undocumented-public-function"
+  }
+]

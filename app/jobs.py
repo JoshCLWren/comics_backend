@@ -26,6 +26,7 @@ class ImageJobManager:
     """Simple in-memory manager for upload jobs."""
 
     def __init__(self) -> None:
+        """Initialize an empty job map protected by a lock."""
         self._jobs: Dict[str, _ImageJobRecord] = {}
         self._lock = Lock()
 
@@ -37,6 +38,7 @@ class ImageJobManager:
         copy_id: int,
         image_type: schemas.ImageType,
     ) -> schemas.ImageUploadJob:
+        """Create a new job record for an async image upload."""
         record = _ImageJobRecord(
             job_id=uuid4().hex,
             series_id=series_id,
@@ -49,12 +51,14 @@ class ImageJobManager:
         return self._serialize(record)
 
     def mark_in_progress(self, job_id: str) -> None:
+        """Transition a job to the in-progress state."""
         with self._lock:
             record = self._require(job_id)
             record.status = schemas.JobStatus.IN_PROGRESS
             record.detail = None
 
     def mark_completed(self, job_id: str, result: schemas.ComicImage) -> None:
+        """Store the finished image metadata and mark the job done."""
         with self._lock:
             record = self._require(job_id)
             record.status = schemas.JobStatus.COMPLETED
@@ -62,12 +66,14 @@ class ImageJobManager:
             record.result = result
 
     def mark_failed(self, job_id: str, detail: str) -> None:
+        """Persist the failure detail and mark the job as failed."""
         with self._lock:
             record = self._require(job_id)
             record.status = schemas.JobStatus.FAILED
             record.detail = detail
 
     def get_job(self, job_id: str) -> schemas.ImageUploadJob | None:
+        """Fetch a serialized job if it exists."""
         with self._lock:
             record = self._jobs.get(job_id)
             if not record:

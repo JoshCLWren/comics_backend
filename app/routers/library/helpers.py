@@ -16,6 +16,7 @@ MAX_PAGE_SIZE = 100
 
 
 def parse_page_token(page_token: str | None) -> int:
+    """Convert an opaque page token to an offset integer."""
     if not page_token:
         return 0
     try:
@@ -28,6 +29,7 @@ def parse_page_token(page_token: str | None) -> int:
 
 
 def next_page_token(offset: int, page_size: int, rows_returned: int) -> str | None:
+    """Return the next page token when a page has more rows available."""
     if rows_returned > page_size:
         return str(offset + page_size)
     return None
@@ -36,11 +38,13 @@ def next_page_token(offset: int, page_size: int, rows_returned: int) -> str | No
 def row_to_model(
     model_cls: type[SerializedModelT], row: sqlite3.Row
 ) -> SerializedModelT:
+    """Hydrate a Pydantic model from a sqlite row."""
     data = schemas.dict_from_row(row)
     return model_cls(**data)
 
 
 async def ensure_series(conn: aiosqlite.Connection, series_id: int) -> None:
+    """Raise 404 when the requested series is missing."""
     async with conn.execute(
         "SELECT 1 FROM series WHERE series_id = ?", (series_id,)
     ) as cursor:
@@ -53,6 +57,7 @@ async def ensure_series(conn: aiosqlite.Connection, series_id: int) -> None:
 
 
 async def fetch_series(conn: aiosqlite.Connection, series_id: int) -> sqlite3.Row:
+    """Fetch a series row or raise 404 if it does not exist."""
     async with conn.execute(
         """
         SELECT series_id, title, publisher, series_group, age
@@ -73,6 +78,7 @@ async def fetch_series(conn: aiosqlite.Connection, series_id: int) -> sqlite3.Ro
 async def fetch_issue(
     conn: aiosqlite.Connection, series_id: int, issue_id: int
 ) -> sqlite3.Row:
+    """Fetch an issue row scoped to the provided series."""
     async with conn.execute(
         """
         SELECT issue_id, series_id, issue_nr, variant, title, subtitle,
@@ -94,6 +100,7 @@ async def fetch_issue(
 async def fetch_copy(
     conn: aiosqlite.Connection, issue_id: int, copy_id: int
 ) -> sqlite3.Row:
+    """Fetch a copy for a given issue, raising 404 if not found."""
     async with conn.execute(
         """
         SELECT id AS copy_id, issue_id, clz_comic_id, custom_label, format,
@@ -118,6 +125,7 @@ async def fetch_copy(
 
 
 async def ensure_issue_exists(conn: aiosqlite.Connection, issue_id: int) -> None:
+    """Validate that an issue exists regardless of series context."""
     async with conn.execute(
         "SELECT 1 FROM issues WHERE issue_id = ?",
         (issue_id,),
