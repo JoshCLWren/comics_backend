@@ -1,17 +1,44 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
+
+import pandas as pd
+from alembic.config import Config
 
 from alembic import command
-from alembic.config import Config
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 CSV_PATH = Path("./data/clz_export.csv")
 DB_PATH = Path("my_database.db")
 ALEMBIC_INI_PATH = Path("alembic.ini")
+
+
+def parse_optional_number(value: Any) -> int | float | None:
+    """Try to coerce a value to a numeric type, return None if that fails."""
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+
+    if pd.isna(value):
+        return None
+
+    if isinstance(value, (int, float)):
+        return value
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if pd.isna(number):
+        return None
+    return number
 
 
 def normalize_issue_nr(value) -> str:
@@ -260,12 +287,14 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
         cover_date = normalize_text(row.get("Cover Date"))
 
         cover_year_raw = row.get("Cover Year")
-        cover_year = None
-        if not pd.isna(cover_year_raw):
+
+        if isinstance(cover_year_raw, (int, float, str)):
             try:
                 cover_year = int(cover_year_raw)
             except ValueError:
                 cover_year = None
+        else:
+            cover_year = None
 
         story_arc = normalize_text(row.get("Story Arc"))
 
@@ -351,12 +380,7 @@ def populate_copies(
             continue
 
         clz_comic_id_raw = row.get("Core ComicID")
-        clz_comic_id = None
-        if not pd.isna(clz_comic_id_raw):
-            try:
-                clz_comic_id = int(clz_comic_id_raw)
-            except ValueError:
-                clz_comic_id = None
+        clz_comic_id = parse_optional_number(clz_comic_id_raw)
 
         custom_label = normalize_text(row.get("Custom Label"))
         fmt = normalize_text(row.get("Format"))
@@ -369,56 +393,22 @@ def populate_copies(
 
         purchase_date = normalize_text(row.get("Purchase Date"))
         purchase_store = normalize_text(row.get("Purchase Store"))
-
-        purchase_year_raw = row.get("Purchase Year")
-        purchase_year = None
-        if not pd.isna(purchase_year_raw):
-            try:
-                purchase_year = int(purchase_year_raw)
-            except ValueError:
-                purchase_year = None
+        purchase_year = parse_optional_number(row.get("Purchase Year"))
 
         date_sold = normalize_text(row.get("Date Sold"))
-
-        price_sold_raw = row.get("Price Sold")
-        price_sold = None
-        if not pd.isna(price_sold_raw):
-            try:
-                price_sold = float(price_sold_raw)
-            except ValueError:
-                price_sold = None
+        price_sold = parse_optional_number(row.get("Price Sold"))
 
         sold_year_raw = row.get("Sold Year")
-        sold_year = None
-        if not pd.isna(sold_year_raw):
-            try:
-                sold_year = int(sold_year_raw)
-            except ValueError:
-                sold_year = None
+        sold_year = parse_optional_number(sold_year_raw)
 
         my_value_raw = row.get("My Value")
-        my_value = None
-        if not pd.isna(my_value_raw):
-            try:
-                my_value = float(my_value_raw)
-            except ValueError:
-                my_value = None
+        my_value = parse_optional_number(my_value_raw)
 
         covrprice_value_raw = row.get("CovrPrice Value")
-        covrprice_value = None
-        if not pd.isna(covrprice_value_raw):
-            try:
-                covrprice_value = float(covrprice_value_raw)
-            except ValueError:
-                covrprice_value = None
+        covrprice_value = parse_optional_number(covrprice_value_raw)
 
         value_raw = row.get("Value")
-        value = None
-        if not pd.isna(value_raw):
-            try:
-                value = float(value_raw)
-            except ValueError:
-                value = None
+        value = parse_optional_number(value_raw)
 
         country = normalize_text(row.get("Country"))
         language = normalize_text(row.get("Language"))
@@ -426,12 +416,7 @@ def populate_copies(
         barcode = normalize_text(row.get("Barcode"))
 
         cover_price_raw = row.get("Cover Price")
-        cover_price = None
-        if not pd.isna(cover_price_raw):
-            try:
-                cover_price = float(cover_price_raw)
-            except ValueError:
-                cover_price = None
+        cover_price = parse_optional_number(cover_price_raw)
 
         page_quality = normalize_text(row.get("Page Quality"))
 
@@ -441,22 +426,12 @@ def populate_copies(
         label_type = normalize_text(row.get("Label Type"))
 
         no_of_pages_raw = row.get("No. of Pages")
-        no_of_pages = None
-        if not pd.isna(no_of_pages_raw):
-            try:
-                no_of_pages = int(no_of_pages_raw)
-            except ValueError:
-                no_of_pages = None
+        no_of_pages = parse_optional_number(no_of_pages_raw)
 
         variant_description = normalize_text(row.get("Variant Description"))
 
         purchase_price_raw = row.get("Purchase Price")
-        purchase_price = None
-        if not pd.isna(purchase_price_raw):
-            try:
-                purchase_price = float(purchase_price_raw)
-            except ValueError:
-                purchase_price = None
+        purchase_price = parse_optional_number(purchase_price_raw)
 
         try:
             cur.execute(

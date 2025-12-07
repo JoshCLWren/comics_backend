@@ -65,12 +65,13 @@ async def list_series(
     async with conn.execute(query, params) as cursor:
         print("handler /series: query executed, before fetchall", flush=True)
         rows = await cursor.fetchall()
-        print(f"handler /series: after fetchall, rows={len(rows)}", flush=True)
 
-    payload = [helpers.row_to_model(schemas.Series, row) for row in rows[:page_size]]
+    payload = [
+        helpers.row_to_model(schemas.Series, row) for row in list(rows)[:page_size]
+    ]
     print(f"handler /series: built payload size={len(payload)}", flush=True)
 
-    next_token = helpers.next_page_token(offset, page_size, len(rows))
+    next_token = helpers.next_page_token(offset, page_size, len(list(rows)))
     print(f"handler /series: next_page_token={next_token}", flush=True)
 
     print("handler /series: returning response", flush=True)
