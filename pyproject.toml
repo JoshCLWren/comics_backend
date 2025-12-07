@@ -18,10 +18,10 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.1",
     "pytest-cov>=7.0.0",
+    "pyright>=1.1.380",
     "ruff>=0.14.8",
 ]
 [tool.pytest.ini_options]
-addopts = "-p no:locust"
 pythonpath = [
   ".",         # project root
   "comics_backend",

@@ -1,6 +1,7 @@
 import sqlite3
 import sys
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -161,7 +162,8 @@ def test_populate_series_handles_integrity_error(monkeypatch):
             pass
 
     df = pd.DataFrame([{"Core SeriesID": 5, "Series": "Faulty"}])
-    bl.populate_series(DummyConn(), df)
+    conn = cast(sqlite3.Connection, DummyConn())
+    bl.populate_series(conn, df)
 
 
 def _create_issues_table(conn: sqlite3.Connection) -> None:
@@ -297,7 +299,8 @@ def test_populate_issues_handles_integrity_error():
         ]
     )
 
-    bl.populate_issues(DummyConn(), df)
+    conn = cast(sqlite3.Connection, DummyConn())
+    bl.populate_issues(conn, df)
 
 
 def _copies_rows():
@@ -418,7 +421,8 @@ def test_populate_copies_handles_integrity_error():
         ]
     )
     issue_map = {(1, "1", ""): 9}
-    bl.populate_copies(DummyConn(), df, issue_map)
+    conn = cast(sqlite3.Connection, DummyConn())
+    bl.populate_copies(conn, df, issue_map)
 
 
 def test_main_happy_path(monkeypatch, tmp_path):
@@ -484,7 +488,7 @@ def test_module_guard_executes_main(monkeypatch):
 
     def fake_read_csv(_path):
         read_calls.append(True)
-        return pd.DataFrame(columns=["Issue Nr", "Variant", "Core SeriesID"])
+        return pd.DataFrame(columns=pd.Index(["Issue Nr", "Variant", "Core SeriesID"]))
 
     monkeypatch.setattr(pd, "read_csv", fake_read_csv)
 

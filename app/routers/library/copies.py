@@ -76,7 +76,7 @@ async def list_copies(
         """,
         (issue_id, page_size + 1, offset),
     ) as cursor:
-        rows = await cursor.fetchall()
+        rows = list(await cursor.fetchall())
     payload = [helpers.row_to_model(schemas.Copy, row) for row in rows[:page_size]]
     return schemas.ListCopiesResponse(
         copies=payload,
@@ -99,6 +99,7 @@ async def create_copy(
     columns = ", ".join(COPY_COLUMNS)
     placeholders = ", ".join(f":{col}" for col in COPY_COLUMNS)
     data_with_issue = data | {"issue_id": issue_id}
+    copy_id: int | None = None
     try:
         cursor = await conn.execute(
             f"""
@@ -113,6 +114,8 @@ async def create_copy(
     except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=400, detail="failed to create copy") from exc
 
+    if copy_id is None:
+        raise HTTPException(status_code=500, detail="failed to create copy")
     row = await helpers.fetch_copy(conn, issue_id, copy_id)
     return helpers.row_to_model(schemas.Copy, row)
 

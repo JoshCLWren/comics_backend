@@ -47,7 +47,7 @@ async def list_issues(
     """
     params.extend([page_size + 1, offset])
     async with conn.execute(query, params) as cursor:
-        rows = await cursor.fetchall()
+        rows = list(await cursor.fetchall())
     payload = [helpers.row_to_model(schemas.Issue, row) for row in rows[:page_size]]
     return schemas.ListIssuesResponse(
         issues=payload,
@@ -69,6 +69,7 @@ async def create_issue(
     data = request.model_dump()
     data["variant"] = data.get("variant") or ""
     data["series_id"] = series_id
+    issue_id: int | None = None
     try:
         cursor = await conn.execute(
             """
@@ -89,6 +90,8 @@ async def create_issue(
             detail="issue already exists for this series",
         ) from exc
 
+    if issue_id is None:
+        raise HTTPException(status_code=500, detail="failed to create issue")
     row = await helpers.fetch_issue(conn, series_id, issue_id)
     return helpers.row_to_model(schemas.Issue, row)
 
