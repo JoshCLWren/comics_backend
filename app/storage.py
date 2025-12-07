@@ -236,10 +236,13 @@ def _parse_image_type(copy_id: int, filename: str) -> schemas.ImageType | None:
     if not filename.startswith(prefix):
         return None
     remainder = filename[len(prefix) :]
-    parts = remainder.split("_", 1)
-    if not parts:
+    stem = Path(remainder).stem
+    try:
+        image_type_value, _, _ = stem.rsplit("_", 2)
+    except ValueError:
         return None
-    image_type_value = parts[0]
+    if not image_type_value:
+        return None
     try:
         return schemas.ImageType(image_type_value)
     except ValueError:

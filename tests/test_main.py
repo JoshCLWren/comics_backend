@@ -280,6 +280,23 @@ def test_upload_and_list_copy_images(api_client: TestClient, image_root):
     assert listing["images"][0]["file_name"] == finished["result"]["file_name"]
 
 
+def test_upload_interior_cover_images_use_snake_case(api_client: TestClient, image_root):
+    """Interior cover uploads return snake_case image types in listings."""
+    for kind in ("interior_front_cover", "interior_back_cover"):
+        resp = api_client.post(
+            "/v1/series/1/issues/1/copies/1/images",
+            data={"image_type": kind},
+            files={"file": (f"{kind}.jpg", b"bytes", "image/jpeg")},
+        )
+        assert resp.status_code == 202
+        _wait_for_job_completion(api_client, resp.json()["job_id"])
+
+    resp = api_client.get("/v1/series/1/issues/1/copies/1/images")
+    assert resp.status_code == 200
+    returned_types = {image["image_type"] for image in resp.json()["images"]}
+    assert {"interior_front_cover", "interior_back_cover"} <= returned_types
+
+
 def test_replace_copy_image(api_client: TestClient, image_root):
     """Setting replace_existing removes older images of the same type."""
     resp = api_client.post(

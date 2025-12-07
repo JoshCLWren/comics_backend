@@ -91,3 +91,25 @@ async def test_delete_copy_images_by_type_removes_series_when_last_issue_deleted
     assert removed_two == 1
     assert not issue_two_path.exists()
     assert not series_path.exists()
+
+
+@pytest.mark.asyncio()
+async def test_list_copy_images_preserves_snake_case_types(image_root):
+    copy_context = _build_context(copy_id=5)
+    for image_type in (
+        schemas.ImageType.FRONT,
+        schemas.ImageType.INTERIOR_FRONT_COVER,
+        schemas.ImageType.INTERIOR_BACK_COVER,
+    ):
+        await storage.save_copy_image(
+            _build_context(copy_id=5, image_type=image_type),
+            payload=image_type.value.encode(),
+            original_filename=f"{image_type.value}.jpg",
+        )
+
+    images = await storage.list_copy_images(copy_context)
+    assert {
+        schemas.ImageType.FRONT,
+        schemas.ImageType.INTERIOR_FRONT_COVER,
+        schemas.ImageType.INTERIOR_BACK_COVER,
+    } <= {image.image_type for image in images}
