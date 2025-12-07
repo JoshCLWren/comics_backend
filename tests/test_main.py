@@ -256,6 +256,63 @@ def test_upload_and_list_copy_images(api_client: TestClient, image_root):
     assert listing["images"][0]["file_name"] == finished["result"]["file_name"]
 
 
+def test_replace_copy_image(api_client: TestClient, image_root):
+    """Setting replace_existing removes older images of the same type."""
+    resp = api_client.post(
+        "/v1/series/1/issues/1/copies/1/images",
+        data={"image_type": "front"},
+        files={"file": ("front.jpg", b"first", "image/jpeg")},
+    )
+    first_job = _wait_for_job_completion(api_client, resp.json()["job_id"])
+    first_file = first_job["result"]["file_name"]
+    first_path = image_root / first_job["result"]["relative_path"]
+    assert first_path.exists()
+
+    resp = api_client.post(
+        "/v1/series/1/issues/1/copies/1/images",
+        data={"image_type": "front", "replace_existing": "true"},
+        files={"file": ("front_new.jpg", b"second", "image/jpeg")},
+    )
+    second_job = _wait_for_job_completion(api_client, resp.json()["job_id"])
+    second_file = second_job["result"]["file_name"]
+    assert second_file != first_file
+
+    resp = api_client.get("/v1/series/1/issues/1/copies/1/images")
+    assert resp.status_code == 200
+    listing = resp.json()["images"]
+    assert len(listing) == 1
+    assert listing[0]["file_name"] == second_file
+    assert not first_path.exists()
+
+
+def test_delete_copy_image(api_client: TestClient, image_root):
+    """Image delete endpoint removes files and updates listings."""
+    resp = api_client.post(
+        "/v1/series/1/issues/1/copies/1/images",
+        data={"image_type": "front"},
+        files={"file": ("front.jpg", b"binarydata", "image/jpeg")},
+    )
+    job = _wait_for_job_completion(api_client, resp.json()["job_id"])
+    file_name = job["result"]["file_name"]
+    saved_path = image_root / job["result"]["relative_path"]
+    assert saved_path.exists()
+
+    resp = api_client.delete(
+        f"/v1/series/1/issues/1/copies/1/images/{file_name}"
+    )
+    assert resp.status_code == 204
+    assert not saved_path.exists()
+
+    resp = api_client.get("/v1/series/1/issues/1/copies/1/images")
+    assert resp.status_code == 200
+    assert resp.json()["images"] == []
+
+    resp = api_client.delete(
+        f"/v1/series/1/issues/1/copies/1/images/{file_name}"
+    )
+    assert resp.status_code == 404
+
+
 def test_job_lookup_not_found(api_client: TestClient):
     """GET /jobs returns 404 for unknown identifiers."""
     resp = api_client.get("/v1/jobs/does-not-exist")

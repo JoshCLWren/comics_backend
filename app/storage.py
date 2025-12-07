@@ -120,6 +120,59 @@ def _list_images_sync(
     return responses
 
 
+async def delete_copy_images_by_type(
+    context: ImageContext,
+    *,
+    image_type: schemas.ImageType,
+    exclude: set[str] | None = None,
+) -> int:
+    """Delete stored images for the copy filtered by type."""
+
+    root = resolve_image_root()
+    series_dir = _series_directory(context.series_title, context.series_id)
+    issue_dir = _issue_directory(
+        context.issue_number, context.issue_variant, context.issue_id
+    )
+    full_dir = root / series_dir / issue_dir
+    if not full_dir.exists():
+        return 0
+
+    prefix = f"copy{context.copy_id}_"
+    return await asyncio.to_thread(
+        _delete_images_by_type_sync,
+        full_dir,
+        prefix,
+        context.copy_id,
+        image_type,
+        exclude or set(),
+    )
+
+
+async def delete_copy_image_by_name(
+    context: ImageContext, *, file_name: str
+) -> bool:
+    """Delete a specific stored image if it exists."""
+
+    if not _is_safe_filename(file_name):
+        raise ValueError("invalid image file name")
+
+    root = resolve_image_root()
+    series_dir = _series_directory(context.series_title, context.series_id)
+    issue_dir = _issue_directory(
+        context.issue_number, context.issue_variant, context.issue_id
+    )
+    full_dir = root / series_dir / issue_dir
+    if not full_dir.exists():
+        return False
+
+    destination = full_dir / file_name
+    if not destination.exists():
+        return False
+
+    await asyncio.to_thread(destination.unlink)
+    return True
+
+
 def _series_directory(series_title: str | None, series_id: int) -> Path:
     title = series_title or f"series_{series_id}"
     name = _sanitize_component(title, f"series_{series_id}")
@@ -177,3 +230,40 @@ def _parse_image_type(copy_id: int, filename: str) -> schemas.ImageType | None:
         return schemas.ImageType(image_type_value)
     except ValueError:
         return None
+
+
+def _delete_images_by_type_sync(
+    directory: Path,
+    prefix: str,
+    copy_id: int,
+    target_type: schemas.ImageType,
+    exclude: set[str],
+) -> int:
+    removed = 0
+    for path in _iter_image_files(directory, prefix):
+        if path.name in exclude:
+            continue
+        image_type = _parse_image_type(copy_id, path.name)
+        if image_type != target_type:
+            continue
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            continue
+        removed += 1
+    return removed
+
+
+def _is_safe_filename(name: str) -> bool:
+    if not name:
+        return False
+    path = Path(name)
+    if path.is_absolute():
+        return False
+    if path.name != name:
+        return False
+    if ".." in path.parts:
+        return False
+    if "/" in name or "\\" in name:
+        return False
+    return True

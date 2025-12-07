@@ -58,6 +58,7 @@ async def upload_copy_image(
     copy_id: int,
     background_tasks: BackgroundTasks,
     image_type: schemas.ImageType = Form(...),
+    replace_existing: bool = Form(False),
     file: UploadFile = File(...),
     conn: aiosqlite.Connection = Depends(get_connection),
 ) -> schemas.ImageUploadJob:
@@ -88,6 +89,7 @@ async def upload_copy_image(
         context,
         payload,
         original_filename,
+        replace_existing,
     )
     return job
 
@@ -114,13 +116,52 @@ async def list_copy_images(
     return schemas.ListCopyImagesResponse(images=images)
 
 
+@router.delete(
+    "/series/{series_id}/issues/{issue_id}/copies/{copy_id}/images/{file_name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_copy_image(
+    series_id: int,
+    issue_id: int,
+    copy_id: int,
+    file_name: str,
+    conn: aiosqlite.Connection = Depends(get_connection),
+) -> None:
+    """Remove a stored image identified by its file name."""
+    context = await _build_context(
+        conn,
+        series_id=series_id,
+        issue_id=issue_id,
+        copy_id=copy_id,
+        image_type=schemas.ImageType.FRONT,
+    )
+    try:
+        removed = await storage.delete_copy_image_by_name(
+            context, file_name=file_name
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not removed:
+        raise HTTPException(status_code=404, detail="image not found")
+    await cache.invalidate_paths(
+        [
+            f"/series/{series_id}/issues/{issue_id}/copies/{copy_id}/images",
+        ]
+    )
+
+
 def _enqueue_image_job(
     job_id: str,
     context: storage.ImageContext,
     payload: bytes,
     original_filename: str | None,
+    replace_existing: bool,
 ) -> None:
-    asyncio.run(_process_image_job(job_id, context, payload, original_filename))
+    asyncio.run(
+        _process_image_job(
+            job_id, context, payload, original_filename, replace_existing
+        )
+    )
 
 
 async def _process_image_job(
@@ -128,6 +169,7 @@ async def _process_image_job(
     context: storage.ImageContext,
     payload: bytes,
     original_filename: str | None,
+    replace_existing: bool,
 ) -> None:
     image_jobs.mark_in_progress(job_id)
     await cache.invalidate_paths([f"/v1/jobs/{job_id}"])
@@ -137,6 +179,12 @@ async def _process_image_job(
             payload=payload,
             original_filename=original_filename,
         )
+        if replace_existing:
+            await storage.delete_copy_images_by_type(
+                context,
+                image_type=context.image_type,
+                exclude={result.file_name},
+            )
     except Exception as exc:  # pragma: no cover - defensive failure handling
         image_jobs.mark_failed(job_id, str(exc))
         await cache.invalidate_paths([f"/v1/jobs/{job_id}"])
