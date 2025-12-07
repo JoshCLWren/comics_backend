@@ -263,10 +263,7 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
         FROM issues;
         """
     )
-    existing_issues = {
-        (row[1], row[2], row[3]): row[0]
-        for row in cur.fetchall()
-    }
+    existing_issues = {(row[1], row[2], row[3]): row[0] for row in cur.fetchall()}
 
     issue_key_cols = ["Core SeriesID", "IssueNrNorm", "VariantNorm"]
     unique_issue_count = df.drop_duplicates(subset=issue_key_cols).shape[0]
@@ -406,9 +403,7 @@ def populate_copies(
 ) -> None:
     """Insert copy rows while referencing the issue map."""
     cur = conn.cursor()
-    cur.execute(
-        "SELECT id, clz_comic_id FROM copies WHERE clz_comic_id IS NOT NULL;"
-    )
+    cur.execute("SELECT id, clz_comic_id FROM copies WHERE clz_comic_id IS NOT NULL;")
     existing_copy_ids = {row[1]: row[0] for row in cur.fetchall()}
 
     inserted = 0

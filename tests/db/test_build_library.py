@@ -161,6 +161,7 @@ def test_populate_series_inserts_and_skips(caplog):
 
 def test_populate_series_handles_integrity_error(monkeypatch):
     """populate_series swallows sqlite constraint errors."""
+
     class DummyCursor:
         def __init__(self):
             self.initialized = False
@@ -347,6 +348,7 @@ def test_populate_issues_builds_issue_map(caplog):
 
 def test_populate_issues_handles_integrity_error():
     """populate_issues swallows sqlite constraint errors."""
+
     class DummyCursor:
         def __init__(self):
             self.lastrowid = 0
@@ -434,7 +436,14 @@ def test_populate_issues_upserts_existing_rows():
         "SELECT title, subtitle, full_title, cover_date, cover_year, story_arc "
         "FROM issues WHERE series_id=1 AND issue_nr='1' AND variant='';"
     ).fetchone()
-    assert updated_row == ("Updated", "NewSub", "Updated Full", "2024-04", 2024, "New Arc")
+    assert updated_row == (
+        "Updated",
+        "NewSub",
+        "Updated Full",
+        "2024-04",
+        2024,
+        "New Arc",
+    )
 
     inserted_row = conn.execute(
         "SELECT series_id, issue_nr, variant FROM issues WHERE series_id=2"
@@ -543,6 +552,7 @@ def test_populate_copies_inserts_rows(caplog):
 
 def test_populate_copies_handles_integrity_error():
     """populate_copies continues after sqlite constraint errors."""
+
     class DummyCursor:
         def __init__(self):
             self.ready = False

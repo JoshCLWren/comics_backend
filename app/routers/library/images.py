@@ -16,7 +16,7 @@ from fastapi import (
     status,
 )
 
-from app import schemas, storage
+from app import cache, schemas, storage
 from app.db import get_connection
 from app.jobs import image_jobs
 
@@ -130,6 +130,7 @@ async def _process_image_job(
     original_filename: str | None,
 ) -> None:
     image_jobs.mark_in_progress(job_id)
+    await cache.invalidate_paths([f"/v1/jobs/{job_id}"])
     try:
         result = await storage.save_copy_image(
             context,
@@ -138,5 +139,12 @@ async def _process_image_job(
         )
     except Exception as exc:  # pragma: no cover - defensive failure handling
         image_jobs.mark_failed(job_id, str(exc))
+        await cache.invalidate_paths([f"/v1/jobs/{job_id}"])
     else:
         image_jobs.mark_completed(job_id, result)
+        await cache.invalidate_paths(
+            [
+                f"/v1/jobs/{job_id}",
+                f"/series/{context.series_id}/issues/{context.issue_id}/copies/{context.copy_id}/images",
+            ]
+        )

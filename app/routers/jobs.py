@@ -14,7 +14,9 @@ router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
 async def get_job(job_id: str) -> schemas.ImageUploadJob:
     job = image_jobs.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="job not found"
+        )
     return job
 
 

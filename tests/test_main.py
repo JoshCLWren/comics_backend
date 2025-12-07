@@ -322,6 +322,66 @@ def test_series_filters_and_conflict(api_client: TestClient):
     assert resp.json()["detail"] == "series 3 already exists"
 
 
+def test_series_title_search_returns_relevance_order(api_client: TestClient):
+    """title_search sorts results by fuzzy similarity instead of alphabetically."""
+    variants = [
+        {"series_id": 10, "title": "X-Men", "publisher": "Marvel"},
+        {"series_id": 11, "title": "Uncanny X-Men", "publisher": "Marvel"},
+        {"series_id": 12, "title": "X-Men Red", "publisher": "Marvel"},
+    ]
+    for payload in variants:
+        resp = api_client.post("/v1/series", json=payload)
+        assert resp.status_code == 201
+
+    resp = api_client.get(
+        "/v1/series",
+        params={"title_search": "x-men", "page_size": 5},
+    )
+    assert resp.status_code == 200
+    payload = resp.json()["series"]
+    titles = [series["title"] for series in payload]
+    assert titles[0] == "X-Men"
+    assert {"Uncanny X-Men", "X-Men Red"}.issubset(set(titles[:3]))
+
+
+def test_series_title_search_ignores_hyphens(api_client: TestClient):
+    """title_search treats hyphenated queries the same as condensed terms."""
+    resp = api_client.post(
+        "/v1/series",
+        json={"series_id": 20, "title": "X-Men", "publisher": "Marvel"},
+    )
+    assert resp.status_code == 201
+
+    hyphenated = api_client.get("/v1/series", params={"title_search": "x-men"})
+    condensed = api_client.get("/v1/series", params={"title_search": "xmen"})
+    assert hyphenated.status_code == condensed.status_code == 200
+    assert hyphenated.json()["series"] == condensed.json()["series"]
+
+
+def test_series_title_search_handles_partial_tokens(api_client: TestClient):
+    """title_search prefers the best partial token matches."""
+    xtreme = {
+        "series_id": 30,
+        "title": "X-Treme X-Men, Vol. 1",
+        "publisher": "Marvel",
+    }
+    xfarce = {
+        "series_id": 31,
+        "title": "X-Farce",
+        "publisher": "Marvel",
+    }
+    for payload in (xtreme, xfarce):
+        resp = api_client.post("/v1/series", json=payload)
+        assert resp.status_code == 201
+
+    resp = api_client.get("/v1/series", params={"title_search": "Xtrem"})
+    assert resp.status_code == 200
+
+    series_titles = [item["title"] for item in resp.json()["series"]]
+    assert series_titles[0] == "X-Treme X-Men, Vol. 1"
+    assert all("Farce" not in title for title in series_titles)
+
+
 def test_series_update_and_delete_flow(api_client: TestClient):
     """Series records support PATCH and DELETE operations."""
     resp = api_client.patch(
