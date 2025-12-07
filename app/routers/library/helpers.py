@@ -52,6 +52,24 @@ async def ensure_series(conn: aiosqlite.Connection, series_id: int) -> None:
         )
 
 
+async def fetch_series(conn: aiosqlite.Connection, series_id: int) -> sqlite3.Row:
+    async with conn.execute(
+        """
+        SELECT series_id, title, publisher, series_group, age
+        FROM series
+        WHERE series_id = ?
+        """,
+        (series_id,),
+    ) as cursor:
+        row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"series {series_id} not found",
+        )
+    return row
+
+
 async def fetch_issue(
     conn: aiosqlite.Connection, series_id: int, issue_id: int
 ) -> sqlite3.Row:

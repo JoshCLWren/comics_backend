@@ -1,5 +1,5 @@
 """FastAPI routers for the comics backend."""
 
-from . import library
+from . import jobs, library
 
-__all__ = ["library"]
+__all__ = ["library", "jobs"]

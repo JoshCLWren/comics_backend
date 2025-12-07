@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -143,6 +144,47 @@ class UpdateCopyRequest(CopyBase):
 
 class ListCopiesResponse(PagingResponse):
     copies: list[Copy]
+
+
+class ImageType(str, Enum):
+    FRONT = "front"
+    BACK = "back"
+    SPINE = "spine"
+    STAPLES = "staples"
+    INTERIOR_FRONT_COVER = "interior_front_cover"
+    INTERIOR_BACK_COVER = "interior_back_cover"
+    MISC = "misc"
+
+
+class ComicImage(APIModel):
+    series_id: int
+    issue_id: int
+    copy_id: int
+    image_type: ImageType
+    file_name: str
+    relative_path: str
+
+
+class ListCopyImagesResponse(APIModel):
+    images: list[ComicImage]
+
+
+class JobStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ImageUploadJob(APIModel):
+    job_id: str
+    series_id: int
+    issue_id: int
+    copy_id: int
+    image_type: ImageType
+    status: JobStatus
+    detail: str | None = None
+    result: ComicImage | None = None
 
 
 SerializedModel = Series | Issue | Copy

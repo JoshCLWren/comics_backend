@@ -1,5 +1,6 @@
 import sqlite3
 import sys
+import time
 from typing import Iterator
 
 import pytest
@@ -127,7 +128,15 @@ def db_path(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def api_client(db_path) -> Iterator[TestClient]:
+def image_root(tmp_path, monkeypatch):
+    root = tmp_path / "images"
+    root.mkdir()
+    monkeypatch.setenv("COMICS_IMAGE_ROOT", str(root))
+    return root
+
+
+@pytest.fixture()
+def api_client(db_path, image_root) -> Iterator[TestClient]:
     """FastAPI TestClient wired to the temp DB."""
     # COMICS_DB_PATH already set by db_path fixture
     client = TestClient(app, raise_server_exceptions=True)
@@ -135,6 +144,25 @@ def api_client(db_path) -> Iterator[TestClient]:
         yield client
     finally:
         client.close()
+
+
+def _wait_for_job_completion(api_client: TestClient, job_id: str, timeout: float = 1.0):
+    """Poll the job endpoint until it completes or fails."""
+    deadline = time.time() + timeout
+    last_payload: dict | None = None
+    while time.time() < deadline:
+        resp = api_client.get(f"/v1/jobs/{job_id}")
+        assert resp.status_code == 200
+        payload = resp.json()
+        if payload["status"] == "completed":
+            return payload
+        if payload["status"] == "failed":
+            pytest.fail(f"job {job_id} failed: {payload['detail']}")
+        last_payload = payload
+        time.sleep(0.01)
+    pytest.fail(
+        f"job {job_id} did not finish, last status {last_payload['status'] if last_payload else 'unknown'}"
+    )
 
 
 def test_list_series_paginates(api_client: TestClient):
@@ -198,6 +226,34 @@ def test_create_issue_and_fetch(api_client: TestClient):
     resp = api_client.get(f"/v1/series/1/issues/{created['issue_id']}")
     assert resp.status_code == 200
     assert resp.json()["title"] == "Finale"
+
+
+def test_upload_and_list_copy_images(api_client: TestClient, image_root):
+    resp = api_client.post(
+        "/v1/series/1/issues/1/copies/1/images",
+        data={"image_type": "front"},
+        files={"file": ("front.jpg", b"binarydata", "image/jpeg")},
+    )
+    assert resp.status_code == 202
+    job_body = resp.json()
+    assert job_body["status"] == "pending"
+    finished = _wait_for_job_completion(api_client, job_body["job_id"])
+    assert finished["status"] == "completed"
+    assert finished["result"] is not None
+    saved_path = image_root / finished["result"]["relative_path"]
+    assert saved_path.exists()
+
+    resp = api_client.get("/v1/series/1/issues/1/copies/1/images")
+    assert resp.status_code == 200
+    listing = resp.json()
+    assert len(listing["images"]) == 1
+    assert listing["images"][0]["file_name"] == finished["result"]["file_name"]
+
+
+def test_job_lookup_not_found(api_client: TestClient):
+    resp = api_client.get("/v1/jobs/does-not-exist")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "job not found"
 
 
 def test_update_copy_flow(api_client: TestClient):
