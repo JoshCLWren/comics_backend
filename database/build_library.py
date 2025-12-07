@@ -170,6 +170,9 @@ def load_csv() -> pd.DataFrame:
 def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
     """Insert unique series rows extracted from the CSV."""
     cur = conn.cursor()
+    cur.execute("SELECT series_id FROM series;")
+    existing_series_ids = {row[0] for row in cur.fetchall()}
+
     total_rows = len(df)
     unique_series = df["Core SeriesID"].nunique(dropna=True)
     logger.info(
@@ -179,6 +182,7 @@ def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
     )
 
     inserted = 0
+    updated = 0
     skipped = 0
     seen_series_ids: dict[int, str] = {}
 
@@ -215,7 +219,12 @@ def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
             cur.execute(
                 """
                 INSERT INTO series (series_id, title, publisher, series_group, age)
-                VALUES (?, ?, ?, ?, ?);
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(series_id) DO UPDATE SET
+                    title=excluded.title,
+                    publisher=excluded.publisher,
+                    series_group=excluded.series_group,
+                    age=excluded.age;
                 """,
                 (series_id, title, publisher, series_group, age),
             )
@@ -230,17 +239,34 @@ def populate_series(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
             continue
 
         seen_series_ids[series_id] = describe_row(row)
-        inserted += 1
+        if series_id in existing_series_ids:
+            updated += 1
+        else:
+            inserted += 1
+            existing_series_ids.add(series_id)
 
     conn.commit()
     logger.info(
-        "Finished inserting series rows (inserted=%d, skipped=%d)", inserted, skipped
+        "Finished upserting series rows (inserted=%d, updated=%d, skipped=%d)",
+        inserted,
+        updated,
+        skipped,
     )
 
 
 def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
     """Insert issues and return a lookup keyed by (series_id, issue_nr, variant)."""
     cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT issue_id, series_id, COALESCE(issue_nr, ''), COALESCE(variant, '')
+        FROM issues;
+        """
+    )
+    existing_issues = {
+        (row[1], row[2], row[3]): row[0]
+        for row in cur.fetchall()
+    }
 
     issue_key_cols = ["Core SeriesID", "IssueNrNorm", "VariantNorm"]
     unique_issue_count = df.drop_duplicates(subset=issue_key_cols).shape[0]
@@ -253,6 +279,7 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
     issue_map = {}
     issue_sources: dict[tuple[int, str, str], str] = {}
     inserted = 0
+    updated = 0
     skipped = 0
 
     for _, row in df.iterrows():
@@ -306,7 +333,15 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
                     series_id, issue_nr, variant,
                     title, subtitle, full_title,
                     cover_date, cover_year, story_arc
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(series_id, issue_nr, variant) DO UPDATE SET
+                    title=excluded.title,
+                    subtitle=excluded.subtitle,
+                    full_title=excluded.full_title,
+                    cover_date=excluded.cover_date,
+                    cover_year=excluded.cover_year,
+                    story_arc=excluded.story_arc;
                 """,
                 (
                     series_id,
@@ -330,14 +365,38 @@ def populate_issues(conn: sqlite3.Connection, df: pd.DataFrame) -> dict:
             )
             continue
 
-        issue_id = cur.lastrowid
+        cur.execute(
+            """
+            SELECT issue_id FROM issues
+            WHERE series_id=? AND issue_nr=? AND variant=?;
+            """,
+            (series_id, issue_nr, variant),
+        )
+        result = cur.fetchone()
+        if result is None:
+            skipped += 1
+            log_row_skip(
+                "issues",
+                row,
+                f"unable to locate issue after upsert for key (series_id={series_id}, issue_nr='{issue_nr}', variant='{variant}')",
+            )
+            continue
+
+        issue_id = result[0]
         issue_map[key] = issue_id
         issue_sources[key] = describe_row(row)
-        inserted += 1
+        if key in existing_issues:
+            updated += 1
+        else:
+            inserted += 1
+        existing_issues[key] = issue_id
 
     conn.commit()
     logger.info(
-        "Finished inserting issues rows (inserted=%d, skipped=%d)", inserted, skipped
+        "Finished upserting issues rows (inserted=%d, updated=%d, skipped=%d)",
+        inserted,
+        updated,
+        skipped,
     )
     return issue_map
 
@@ -347,8 +406,15 @@ def populate_copies(
 ) -> None:
     """Insert copy rows while referencing the issue map."""
     cur = conn.cursor()
+    cur.execute(
+        "SELECT id, clz_comic_id FROM copies WHERE clz_comic_id IS NOT NULL;"
+    )
+    existing_copy_ids = {row[1]: row[0] for row in cur.fetchall()}
+
     inserted = 0
+    updated = 0
     skipped = 0
+    processed_clz_ids: set[Any] = set()
 
     for _, row in df.iterrows():
         series_id_raw = row.get("Core SeriesID")
@@ -383,6 +449,21 @@ def populate_copies(
 
         clz_comic_id_raw = row.get("Core ComicID")
         clz_comic_id = parse_optional_number(clz_comic_id_raw)
+        clz_lookup_key = clz_comic_id
+        if isinstance(clz_lookup_key, float) and clz_lookup_key.is_integer():
+            clz_lookup_key = int(clz_lookup_key)
+        if isinstance(clz_comic_id, float) and clz_comic_id.is_integer():
+            clz_comic_id = int(clz_comic_id)
+        if clz_lookup_key is not None:
+            if clz_lookup_key in processed_clz_ids:
+                skipped += 1
+                log_row_skip(
+                    "copies",
+                    row,
+                    f"duplicate Core ComicID {clz_lookup_key} encountered in CSV",
+                )
+                continue
+            processed_clz_ids.add(clz_lookup_key)
 
         custom_label = normalize_text(row.get("Custom Label"))
         fmt = normalize_text(row.get("Format"))
@@ -435,70 +516,116 @@ def populate_copies(
         purchase_price_raw = row.get("Purchase Price")
         purchase_price = parse_optional_number(purchase_price_raw)
 
-        try:
-            cur.execute(
-                """
-                INSERT INTO copies (
-                    clz_comic_id, issue_id,
-                    custom_label, format, grade,
-                    grader_notes, grading_company,
-                    raw_slabbed, signed_by, slab_cert_number,
-                    purchase_date, purchase_price, purchase_store, purchase_year,
-                    date_sold, price_sold, sold_year,
-                    my_value, covrprice_value, value,
-                    country, language, age, barcode,
-                    cover_price, page_quality,
-                    key_flag, key_category, key_reason, label_type,
-                    no_of_pages, variant_description
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """,
-                (
-                    clz_comic_id,
-                    issue_id,
-                    custom_label,
-                    fmt,
-                    grade,
-                    grader_notes,
-                    grading_company,
-                    raw_slabbed,
-                    signed_by,
-                    slab_cert_number,
-                    purchase_date,
-                    purchase_price,
-                    purchase_store,
-                    purchase_year,
-                    date_sold,
-                    price_sold,
-                    sold_year,
-                    my_value,
-                    covrprice_value,
-                    value,
-                    country,
-                    language,
-                    age,
-                    barcode,
-                    cover_price,
-                    page_quality,
-                    key_flag,
-                    key_category,
-                    key_reason,
-                    label_type,
-                    no_of_pages,
-                    variant_description,
-                ),
-            )
-        except sqlite3.IntegrityError as exc:
-            skipped += 1
-            log_row_skip(
-                "copies", row, "constraint violation while inserting copy", exc
-            )
-            continue
+        copy_values = (
+            clz_comic_id,
+            issue_id,
+            custom_label,
+            fmt,
+            grade,
+            grader_notes,
+            grading_company,
+            raw_slabbed,
+            signed_by,
+            slab_cert_number,
+            purchase_date,
+            purchase_price,
+            purchase_store,
+            purchase_year,
+            date_sold,
+            price_sold,
+            sold_year,
+            my_value,
+            covrprice_value,
+            value,
+            country,
+            language,
+            age,
+            barcode,
+            cover_price,
+            page_quality,
+            key_flag,
+            key_category,
+            key_reason,
+            label_type,
+            no_of_pages,
+            variant_description,
+        )
 
-        inserted += 1
+        copy_id = (
+            existing_copy_ids.get(clz_lookup_key)
+            if clz_lookup_key is not None
+            else None
+        )
+
+        if copy_id is not None:
+            try:
+                cur.execute(
+                    """
+                    UPDATE copies SET
+                        clz_comic_id=?, issue_id=?,
+                        custom_label=?, format=?, grade=?,
+                        grader_notes=?, grading_company=?,
+                        raw_slabbed=?, signed_by=?, slab_cert_number=?,
+                        purchase_date=?, purchase_price=?, purchase_store=?, purchase_year=?,
+                        date_sold=?, price_sold=?, sold_year=?,
+                        my_value=?, covrprice_value=?, value=?,
+                        country=?, language=?, age=?, barcode=?,
+                        cover_price=?, page_quality=?,
+                        key_flag=?, key_category=?, key_reason=?, label_type=?,
+                        no_of_pages=?, variant_description=?
+                    WHERE id=?;
+                    """,
+                    copy_values + (copy_id,),
+                )
+            except sqlite3.IntegrityError as exc:
+                skipped += 1
+                log_row_skip(
+                    "copies",
+                    row,
+                    f"constraint violation while updating copy clz_comic_id={clz_lookup_key}",
+                    exc,
+                )
+                continue
+            updated += 1
+        else:
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO copies (
+                        clz_comic_id, issue_id,
+                        custom_label, format, grade,
+                        grader_notes, grading_company,
+                        raw_slabbed, signed_by, slab_cert_number,
+                        purchase_date, purchase_price, purchase_store, purchase_year,
+                        date_sold, price_sold, sold_year,
+                        my_value, covrprice_value, value,
+                        country, language, age, barcode,
+                        cover_price, page_quality,
+                        key_flag, key_category, key_reason, label_type,
+                        no_of_pages, variant_description
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """,
+                    copy_values,
+                )
+            except sqlite3.IntegrityError as exc:
+                skipped += 1
+                log_row_skip(
+                    "copies", row, "constraint violation while inserting copy", exc
+                )
+                continue
+
+            inserted += 1
+            if clz_lookup_key is not None:
+                existing_copy_ids[clz_lookup_key] = cur.lastrowid
 
     conn.commit()
-    logger.info("Inserted %d copies rows (skipped %d)", inserted, skipped)
+    logger.info(
+        "Upserted copies rows (inserted=%d, updated=%d, skipped=%d)",
+        inserted,
+        updated,
+        skipped,
+    )
 
 
 def main() -> None:
@@ -514,8 +641,9 @@ def main() -> None:
     logger.info("Starting database build using CSV %s", CSV_PATH)
     df = load_csv()
     if DB_PATH.exists():
-        logger.info("Removing existing database at %s", DB_PATH)
-        DB_PATH.unlink()
+        logger.info("Updating existing database at %s", DB_PATH)
+    else:
+        logger.info("Creating new database at %s", DB_PATH)
 
     apply_migrations(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
@@ -527,7 +655,7 @@ def main() -> None:
     finally:
         conn.close()
 
-    logger.info("Database created at %s", DB_PATH.resolve())
+    logger.info("Database updated at %s", DB_PATH.resolve())
 
 
 if __name__ == "__main__":

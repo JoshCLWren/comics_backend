@@ -162,8 +162,17 @@ def test_populate_series_inserts_and_skips(caplog):
 def test_populate_series_handles_integrity_error(monkeypatch):
     """populate_series swallows sqlite constraint errors."""
     class DummyCursor:
-        def execute(self, *_args, **_kwargs):
+        def __init__(self):
+            self.initialized = False
+
+        def execute(self, sql, *_args, **_kwargs):
+            if "SELECT" in sql:
+                self.initialized = True
+                return self
             raise sqlite3.IntegrityError("boom")
+
+        def fetchall(self):
+            return []
 
     class DummyConn:
         def cursor(self):
@@ -177,11 +186,59 @@ def test_populate_series_handles_integrity_error(monkeypatch):
     bl.populate_series(conn, df)
 
 
+def test_populate_series_upserts_existing_rows():
+    """populate_series updates existing rows instead of deleting them."""
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        """
+        CREATE TABLE series (
+            series_id INTEGER PRIMARY KEY,
+            title TEXT,
+            publisher TEXT,
+            series_group TEXT,
+            age TEXT
+        );
+        """
+    )
+    conn.execute(
+        "INSERT INTO series (series_id, title, publisher, series_group, age) VALUES (?, ?, ?, ?, ?);",
+        (1, "Old", "PubA", "GroupA", "Silver"),
+    )
+    df = pd.DataFrame(
+        [
+            {
+                "Core SeriesID": 1,
+                "Series": "New Title",
+                "Publisher": "PubB",
+                "Series Group": "GroupB",
+                "Age": "Modern",
+            },
+            {
+                "Core SeriesID": 2,
+                "Series": "Second",
+                "Publisher": "PubC",
+                "Series Group": "",
+                "Age": "",
+            },
+        ]
+    )
+
+    bl.populate_series(conn, df)
+
+    rows = conn.execute(
+        "SELECT series_id, title, publisher, series_group, age FROM series ORDER BY series_id"
+    ).fetchall()
+    assert rows == [
+        (1, "New Title", "PubB", "GroupB", "Modern"),
+        (2, "Second", "PubC", "", ""),
+    ]
+
+
 def _create_issues_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE issues (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            issue_id INTEGER PRIMARY KEY AUTOINCREMENT,
             series_id INTEGER,
             issue_nr TEXT,
             variant TEXT,
@@ -190,7 +247,8 @@ def _create_issues_table(conn: sqlite3.Connection) -> None:
             full_title TEXT,
             cover_date TEXT,
             cover_year INTEGER,
-            story_arc TEXT
+            story_arc TEXT,
+            UNIQUE(series_id, issue_nr, variant)
         );
         """
     )
@@ -290,10 +348,16 @@ def test_populate_issues_builds_issue_map(caplog):
 def test_populate_issues_handles_integrity_error():
     """populate_issues swallows sqlite constraint errors."""
     class DummyCursor:
-        lastrowid = 0
+        def __init__(self):
+            self.lastrowid = 0
 
-        def execute(self, *_args, **_kwargs):
+        def execute(self, sql, *_args, **_kwargs):
+            if "SELECT" in sql:
+                return self
             raise sqlite3.IntegrityError("nope")
+
+        def fetchall(self):
+            return []
 
     class DummyConn:
         def cursor(self):
@@ -314,6 +378,70 @@ def test_populate_issues_handles_integrity_error():
 
     conn = cast(sqlite3.Connection, DummyConn())
     bl.populate_issues(conn, df)
+
+
+def test_populate_issues_upserts_existing_rows():
+    """populate_issues updates existing issues and keeps new insertions."""
+    conn = sqlite3.connect(":memory:")
+    _create_issues_table(conn)
+    conn.execute(
+        """
+        INSERT INTO issues (
+            issue_id, series_id, issue_nr, variant, title, subtitle, full_title,
+            cover_date, cover_year, story_arc
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """,
+        (
+            10,
+            1,
+            "1",
+            "",
+            "Old",
+            "OldSub",
+            "Old Full",
+            "2000-01",
+            2000,
+            "Old Arc",
+        ),
+    )
+
+    df = pd.DataFrame(
+        [
+            {
+                "Core SeriesID": 1,
+                "IssueNrNorm": "1",
+                "VariantNorm": "",
+                "Title": "Updated",
+                "Subtitle": "NewSub",
+                "Full Title": "Updated Full",
+                "Cover Date": "2024-04",
+                "Cover Year": "2024",
+                "Story Arc": "New Arc",
+            },
+            {
+                "Core SeriesID": 2,
+                "IssueNrNorm": "5",
+                "VariantNorm": "A",
+                "Title": "Fresh",
+            },
+        ]
+    )
+
+    issue_map = bl.populate_issues(conn, df)
+
+    updated_row = conn.execute(
+        "SELECT title, subtitle, full_title, cover_date, cover_year, story_arc "
+        "FROM issues WHERE series_id=1 AND issue_nr='1' AND variant='';"
+    ).fetchone()
+    assert updated_row == ("Updated", "NewSub", "Updated Full", "2024-04", 2024, "New Arc")
+
+    inserted_row = conn.execute(
+        "SELECT series_id, issue_nr, variant FROM issues WHERE series_id=2"
+    ).fetchone()
+    assert inserted_row == (2, "5", "A")
+    assert issue_map[(1, "1", "")] == 10
+    assert issue_map[(2, "5", "A")] != 10
 
 
 def _copies_rows():
@@ -416,8 +544,17 @@ def test_populate_copies_inserts_rows(caplog):
 def test_populate_copies_handles_integrity_error():
     """populate_copies continues after sqlite constraint errors."""
     class DummyCursor:
-        def execute(self, *_args, **_kwargs):
+        def __init__(self):
+            self.ready = False
+
+        def execute(self, sql, *_args, **_kwargs):
+            if not self.ready and "SELECT" in sql:
+                self.ready = True
+                return self
             raise sqlite3.IntegrityError("copies")
+
+        def fetchall(self):
+            return []
 
     class DummyConn:
         def cursor(self):
@@ -440,8 +577,61 @@ def test_populate_copies_handles_integrity_error():
     bl.populate_copies(conn, df, issue_map)
 
 
-def test_main_happy_path(monkeypatch, tmp_path):
-    """main rebuilds the DB and cleans up old artifacts."""
+def test_populate_copies_updates_existing_rows():
+    """populate_copies updates rows matching Core ComicID instead of duplicating."""
+    conn = sqlite3.connect(":memory:")
+    _create_copies_table(conn)
+    conn.execute(
+        """
+        INSERT INTO copies (
+            id, clz_comic_id, issue_id, custom_label, format, grade,
+            purchase_price, price_sold, variant_description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """,
+        (1, 101, 1, "Old Label", "Old Format", "1.0", 1.0, 2.0, "Old Variant"),
+    )
+
+    df = pd.DataFrame(
+        [
+            {
+                "Core SeriesID": 1,
+                "IssueNrNorm": "1",
+                "VariantNorm": "",
+                "Core ComicID": 101,
+                "Custom Label": "New Label",
+                "Format": "Deluxe",
+                "Grade": "9.9",
+                "Purchase Price": "50",
+                "Price Sold": "60",
+                "Variant Description": "Foil",
+            },
+            {
+                "Core SeriesID": 1,
+                "IssueNrNorm": "2",
+                "VariantNorm": "",
+                "Core ComicID": 202,
+            },
+        ]
+    )
+    issue_map = {(1, "1", ""): 1, (1, "2", ""): 2}
+
+    bl.populate_copies(conn, df, issue_map)
+
+    updated_row = conn.execute(
+        "SELECT custom_label, format, grade, purchase_price, price_sold, variant_description "
+        "FROM copies WHERE id=1;"
+    ).fetchone()
+    assert updated_row == ("New Label", "Deluxe", "9.9", 50.0, 60.0, "Foil")
+
+    inserted_rows = conn.execute(
+        "SELECT clz_comic_id, issue_id FROM copies WHERE clz_comic_id=202"
+    ).fetchall()
+    assert inserted_rows == [(202, 2)]
+
+
+def test_main_updates_existing_db(monkeypatch, tmp_path):
+    """main rebuilds the DB in place without removing the file."""
     csv_path = tmp_path / "export.csv"
     csv_path.write_text("Issue Nr,Variant\n1,\n")
     db_path = tmp_path / "library.db"
@@ -490,7 +680,7 @@ def test_main_happy_path(monkeypatch, tmp_path):
     assert series_called == [(dummy_conn, df)]
     assert copies_called == [(dummy_conn, df, {("k",): 1})]
     assert dummy_conn.closed
-    assert not db_path.exists()
+    assert db_path.exists()
 
 
 def test_main_requires_existing_csv(monkeypatch, tmp_path):
@@ -526,7 +716,13 @@ def test_module_guard_executes_main(monkeypatch):
         lastrowid = 1
 
         def execute(self, *_args, **_kwargs):  # pragma: no cover - stub helper
-            return None
+            return self
+
+        def fetchall(self):  # pragma: no cover - stub helper
+            return []
+
+        def fetchone(self):  # pragma: no cover - stub helper
+            return (self.lastrowid,)
 
     class DummyConn:
         def __init__(self):
