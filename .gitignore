@@ -208,3 +208,6 @@ __marimo__/
 
 #sqlite3
 *.db
+
+# Media assets
+*.jpg
