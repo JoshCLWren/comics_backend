@@ -63,7 +63,7 @@ async def list_series(
     if title_search:
         print("handler /series: applying fuzzy ordering", flush=True)
         async with conn.execute(base_query, params) as cursor:
-            rows = await cursor.fetchall()
+            rows = list(await cursor.fetchall())
 
         filtered_rows = [
             row
@@ -92,8 +92,8 @@ async def list_series(
         params_with_paging = params + [page_size + 1, offset]
         print("handler /series: executing alphabetical query", flush=True)
         async with conn.execute(query, params_with_paging) as cursor:
-            rows = await cursor.fetchall()
-        payload_rows = list(rows)[:page_size]
+            rows = list(await cursor.fetchall())
+        payload_rows = rows[:page_size]
         next_token = helpers.next_page_token(offset, page_size, len(rows))
 
     payload = [helpers.row_to_model(schemas.Series, row) for row in payload_rows]

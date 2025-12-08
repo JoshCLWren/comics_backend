@@ -9,7 +9,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Iterable, Sequence
+from typing import Awaitable, Callable, Iterable, Sequence, cast
 
 from fastapi import Request, Response
 from fastapi.concurrency import iterate_in_threadpool
@@ -297,8 +297,10 @@ class RedisResponseCacheMiddleware(BaseHTTPMiddleware):
                 )
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning("failed to cache response: %s", exc)
+
         response.headers["x-cache"] = "miss"
-        response.body_iterator = iterate_in_threadpool(iter([body]))
+        # Replace the response body with the cached body iterator
+        setattr(response, "body_iterator", iterate_in_threadpool(iter([body])))
         return response
 
     async def _handle_mutation(
@@ -327,10 +329,22 @@ class RedisResponseCacheMiddleware(BaseHTTPMiddleware):
         return f"cache:responses:{digest}"
 
     async def _consume_body(self, response: Response) -> bytes:
+        # If there is no streaming iterator, fall back to the plain body attribute.
+        body_iter = getattr(response, "body_iterator", None)
+
+        if body_iter is None:
+            # FastAPI / Starlette Response has a .body attribute that is bytes
+            raw_body = getattr(response, "body", b"")
+            if isinstance(raw_body, bytes):
+                return raw_body
+            # Just in case some odd type sneaks in
+            return bytes(raw_body)
+
         body = b""
-        async for chunk in response.body_iterator:
+        async for chunk in body_iter:  # type: ignore[operator]
             body += chunk
         return body
+
 
     def _cache_headers(self, headers: Iterable[tuple[str, str]]) -> dict[str, str]:
         filtered: dict[str, str] = {}
@@ -357,11 +371,14 @@ async def _register_tags(
 
 async def _invalidate_tag(redis: Redis, tag: str) -> None:
     key = TAG_KEY_PREFIX + tag
-    members = await redis.smembers(key)
+    # redis.asyncio.Redis.smembers is async in our usage, but the type hints
+    # allow a sync return, so we narrow it here for mypy.
+    members = await cast(Awaitable[set[bytes]], redis.smembers(key))
     if members:
         await redis.delete(*members)
     await redis.delete(key)
     logger.info("invalidated tag %s (%s keys)", tag, len(members))
+
 
 
 async def _invalidate_tag_set(

@@ -136,7 +136,7 @@ lint:
 	@$(call log_step,Running Ruff static analysis)
 	uv run ruff check .
 	@$(call log_step,Running Pyright type checking)
-	uv run pyright
+	uv run mypy .
 
 lint-fix:
 	@$(call log_header,Autofix lint issues)

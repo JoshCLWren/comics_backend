@@ -41,6 +41,7 @@ def _build_context(
 
 @pytest.mark.asyncio()
 async def test_delete_copy_image_by_name_cleans_empty_issue_and_series(image_root):
+    """Test to seee if deletes work"""
     context = _build_context(series_id=20, issue_id=30, copy_id=5)
     stored = await storage.save_copy_image(
         context, payload=b"payload", original_filename="front.jpg"
@@ -61,9 +62,16 @@ async def test_delete_copy_image_by_name_cleans_empty_issue_and_series(image_roo
 
 
 @pytest.mark.asyncio()
-async def test_delete_copy_images_by_type_removes_series_when_last_issue_deleted(image_root):
-    context_one = _build_context(series_id=77, issue_id=101, issue_number="1", copy_id=1)
-    context_two = _build_context(series_id=77, issue_id=102, issue_number="2", copy_id=2)
+async def test_delete_copy_images_by_type_removes_series_when_last_issue_deleted(
+    image_root,
+):
+    """Another delete tests case"""
+    context_one = _build_context(
+        series_id=77, issue_id=101, issue_number="1", copy_id=1
+    )
+    context_two = _build_context(
+        series_id=77, issue_id=102, issue_number="2", copy_id=2
+    )
 
     stored_one = await storage.save_copy_image(
         context_one, payload=b"one", original_filename="front.jpg"
@@ -95,6 +103,7 @@ async def test_delete_copy_images_by_type_removes_series_when_last_issue_deleted
 
 @pytest.mark.asyncio()
 async def test_list_copy_images_preserves_snake_case_types(image_root):
+    """Another test case!"""
     copy_context = _build_context(copy_id=5)
     for image_type in (
         schemas.ImageType.FRONT,

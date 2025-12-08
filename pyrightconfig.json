@@ -1,5 +1,0 @@
-{
-  "include": ["alembic", "app", "database", "main.py", "tests"],
-  "venvPath": ".",
-  "venv": ".venv"
-}

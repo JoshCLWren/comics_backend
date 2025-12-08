@@ -10,7 +10,12 @@ from fastapi import HTTPException, status
 
 from app import schemas
 
-SerializedModelT = TypeVar("SerializedModelT", bound=schemas.SerializedModel)
+SerializedModelT = TypeVar(
+    "SerializedModelT",
+    schemas.Series,
+    schemas.Issue,
+    schemas.Copy,
+)
 
 MAX_PAGE_SIZE = 100
 
